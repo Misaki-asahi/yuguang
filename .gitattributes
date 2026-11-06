@@ -1,0 +1,12 @@
+* text=auto eol=lf
+
+# Office 二进制文件：不做行尾转换，也不要在 diff 里显示内容
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.png  binary
+*.jpg  binary
+
+# Windows 脚本保留 CRLF
+*.bat text eol=crlf
+*.ps1 text eol=crlf
