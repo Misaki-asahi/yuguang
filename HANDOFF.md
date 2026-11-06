@@ -1,26 +1,31 @@
 # HANDOFF · 「余光」AI 屏幕行为监测与桌宠提醒工具
 
 > **项目级交接文档。** 上下文快满、或换一个新会话来继续时，先读这一份，再按需读设计文档。
-> 版本 v1.1 ｜ 最后更新 2026-11-05 23:05 ｜ 维护方式见文末第 10 节。
+> 版本 v1.2 ｜ 最后更新 2026-11-06 15:20 ｜ 维护方式见文末第 10 节。
 
 ---
 
 ## 0. 一句话现状
 
-**设计文档 v1.1 已交付**（40 页 Word + 5 张插图；v1.1 只改截图节奏，v1.0 留作存档）；
-**代码侧已完成 M0–M2 主链并实机验证**：采集 → 规则分类 → 聚合 → HTML 日报。
-M3 的判定链、分级干预与桌宠窗口也已实现，等真实使用场景去验。
+**项目已开源并在用**：代码 v0.3.0 正在用户机器上真实运行（今早 10:14 起持续记录），
+设计文档 v1.1 已交付，仓库推到了 GitHub 公开仓库。
 
-代码在 `focuspet/`，三条命令就能看到东西：
+```text
+仓库  https://github.com/Misaki-asahi/yuguang    （main 分支，公开）
+本地  E:\deepseek-data\workspaces\DeepSeekProjects\with席（git 已初始化，工作区干净）
+```
+
+代码在 `focuspet/`，四条命令覆盖日常：
 
 ```powershell
-python -m focuspet --demo        # 造一天数据出日报，不碰屏幕
-python -m focuspet --once        # 只采一次，验证能读到你的窗口
+python -m focuspet --demo        # 造一天数据出日报，不碰屏幕、不碰真实库
 python -m focuspet               # 正式跑：托盘 + 桌宠
+python -m focuspet --report      # 生成并打开今日日报（同日覆盖）
+python -m focuspet --weekly      # 周报；--monthly 月报
 ```
 
 **当前没有被指派的待办。** 下一步候选见第 8 节。
-接着干之前先确认一件事：用户要的是「改文档」还是「改代码」——两边都不要再凭喜好重写。
+接着干之前先确认：用户要改的是「文档」「代码」还是「仓库/协作配置」——三块都别凭喜好重写。
 
 ---
 
@@ -53,14 +58,18 @@ python -m focuspet               # 正式跑：托盘 + 桌宠
 | `make_diagrams.py` | Pillow 画 5 张示意图（无 matplotlib 依赖） | 改图改这里 |
 | `assets/fig*.png` | 生成的插图，被 docx 引用 | 由脚本覆盖，不手改 |
 | `大纲.docx` | 用户原始构想，11KB | **只读，不要动** |
-| `focuspet/` | **代码实现**（M0–M3 已完成部分），入口 `python -m focuspet` | 改代码改这里 |
+| `focuspet/` | **代码实现**（M0–M4 大部分），入口 `python -m focuspet` | 改代码改这里 |
 | `focuspet/README.md` | 代码侧的说明：跑法、目录、限制 | 随代码更新 |
-| `focuspet/docs/preview.png` | 日报截图，给人看效果的 | 由 `--demo` 后重截 |
-| `focuspet/data/` | 运行时数据：db / shots / reports / logs | 可随时整个删掉重建 |
+| `focuspet/docs/*.png` | 日报/周报/月报截图，GitHub 首页在用 | 由 `--demo` 后重截 |
+| `focuspet/data/` | 运行时数据：db / shots / reports / logs | 可随时删掉重建；**已 gitignore，绝不入库** |
+| `README.md` / `LICENSE` / `CONTRIBUTING.md` | 仓库门面（MIT 协议、贡献约定） | 对外口径改这里 |
+| `.github/` | issue 模板（bug / 功能）+ PR 模板 | 协作规则改这里 |
+| `.gitignore` / `.gitattributes` | 排除数据与密钥；docx/图片按二进制处理 | 加新运行时目录时要同步 |
+| `启动余光.bat` / `查看今日日报.bat` | 本机双击启动器（路径写死在用户机器上） | **已 gitignore**，别提交 |
 
 ---
 
-## 3. 已完成（v1.1）
+## 3. 已完成（v1.2）
 
 ### 3.1 交付物结构
 
@@ -83,7 +92,7 @@ python -m focuspet               # 正式跑：托盘 + 桌宠
 抽查渲染页 7、8、18、22、24、32，图 1 与图 4 的新文案、10.5 性能表、11.5 成本表、
 15.4 配置块均排版正常，无溢出。
 
-### 3.3 代码实现（v0.2，2026-11-05 晚）
+### 3.3 代码实现（v0.3.0，2026-11-06）
 
 按设计文档 15.3 的目录结构落地。Python 3.12，依赖 `mss / Pillow / psutil / PyYAML / PySide6-Essentials`。
 
@@ -98,6 +107,7 @@ python -m focuspet               # 正式跑：托盘 + 桌宠
 - **界面**：托盘菜单、设置面板（隐私档 / 截图间隔 / 批次 / 阈值 / 预算 / 数据与缓存）、QPainter 画的桌宠（不依赖美术资源）。设置里的「数据与缓存」可查看截图、打开工作区、调保留天数、立即清理（`maintenance.py`）
 - **运维**：心跳文件、`watchdog.ps1` 看门狗、`autostart.py` 自启、截图保留策略清理
 - **演示隔离**：`--demo` 用独立的 `data/demo.db` + `data/shots-demo/` + `reports/demo.html`，绝不会碰真实数据（有 `assert` 兜底）
+- **离线可用**：除视觉模型外全链路不联网；没配模型时断网无感，配了模型断网则当批降级为规则结果（实测见第 7 节）
 
 > **截图节奏是用户改过的（2026-11-06）**：默认 **600 秒一张**，并关掉「切窗口补拍」
 > （`shot_on_window_change: false`）——不关的话，频繁切窗口会让「每 10 分钟一张」形同虚设。
@@ -128,9 +138,19 @@ python -m focuspet               # 正式跑：托盘 + 桌宠
 | 4 | 切屏横跳会不会反复触发 | 基本已防 | 3 分钟门槛 + 段合并（gap 180s / min_len 60s）+ 10 分钟冷却已能挡住；另补一个真漏洞：只对「2 分钟内还在发生」的段落判定，避免拿几小时前的段落弹提醒 |
 | 5 | 文案全在骂人，三周就被无视 | 真问题 | `intervene.POSITIVE` 加了 8 条正向文案，一段 ≥25 分钟的深度工作结束说一句，不占提醒配额、不走冷却、每天最多 6 次 |
 
+### 3.5 GitHub 发布与协作（2026-11-06）
+
+仓库：**https://github.com/Misaki-asahi/yuguang**（公开，`main` 分支，本地已 `remote add origin`）
+
+- **59 个文件 / 1.7 MB**，两次提交；`.gitignore` 已排除 `focuspet/data/`、`*.db`、`config.yaml`、日志、两个本机 `.bat`、旧版 v1.0 文档
+- 已从远端重新 clone 验证：**不含任何截图 / 数据库 / 配置**；README 配图、规则表、LICENSE 的 raw 链接均 200
+- 发现过的坑：**GitHub 用户名是 `Misaki-asahi`，写成 `Misaki` 会报 `Repository not found`**（不是权限问题，是 URL 错了）
+- 用户知情：仓库当前公开；改 private 不影响已加协作者，但已有的 fork 不会跟着变私有；免费版私有仓库协作者上限约 3 人
+- 未做：分支保护规则（用户自己在 Settings → Rules 建）、GitHub Actions 冒烟测试
+
 ---
 
-## 4. 三个必须守住的判断
+## 4. 四条必须守住的判断
 
 论证都写在 docx 里了，这里只记结论和位置，避免新会话把它们当成"可以优化掉的设计"：
 
@@ -222,20 +242,23 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 「今日概览」全是 0，但日志明明在采样 | 概览读的是 `block`，而 block 只在批次结束时生成；原来不分模式一律 15 分钟一批，重启后要等满一个窗口 | **已修**：没配视觉模型时批次改 1 分钟（零成本），概览里同时显示采样条数与起点 |
 | 自己的主窗口被记成「未识别」，有效比 0 | 规则表里没有这个进程（如 `DeepSeek Harness.exe`、`BongoCat.exe`） | 补 `config/rules.yaml`；已加 AI 工作台 / AI 站点 / 桌面挂件三条，现在 40 条 |
 | 声明了目标，但「深度专注」还是 0 | 专注只累计 `on_task=true` 且 ≥25 分钟的 deep_work 段；没目标时 `on_task` 是 null | 先声明目标；概览底部现在会直接提示这一点，启动 1 分钟也会弹一次提醒 |
+| `git push` 报 `Repository not found` | 大概率是 **URL 里的 GitHub 用户名写错**（这次写成了 `Misaki`，实际是 `Misaki-asahi`），不是权限问题 | 先去网页确认仓库地址，再 `git remote set-url origin <正确地址>` |
+| 担心把截图/数据库推上去 | `focuspet/data/` 与 `config.yaml` 已在 `.gitignore`，误用 `git add -f` 会进历史，删除需要 `git filter-repo` | 提交前 `git status` 扫一眼；永不对 data 目录用 `-f` |
 
 ---
 
 ## 8. 未完成 / 可选的下一步
 
-**文档侧没有半成品；代码侧 M0–M2 已可日常用，M3 待真实场景验证。** 按性价比排序：
+**文档侧没有半成品；代码侧 M0–M4 已可日常用，M5 做了一半。** 按性价比排序：
 
-1. **让它真的跑一天**（最该做的）—— `python -m focuspet`，晚上看日报哪里不对：分类错了就补 `config/rules.yaml`，指标错了改 `aggregate.py`
-2. **填视觉模型的 endpoint 与 key** —— 现在完全没配，全部走规则；配好后 B 档才会启用（`FOCUSPET_KEY` + `analyze.endpoint/model`）
-3. **金标集 100 条** —— 11.7 说的那个本子，是判断「改规则后变好还是变坏」的唯一依据
-4. **M4 收尾** —— 配置面板已可用，还差托盘里的「开始专注/休息」闭环和纠错入口接到日报上
-5. **M5 剩下的趋势** —— 周报/月报已做（`report/summary.py`）；还差跨月趋势折线、年度汇总
-6. **打包成 exe** —— PyInstaller，单文件，启动慢 1 秒可以接受
-7. **精简版 15 页 / 评审 PPT / 成本测算表** —— 只有在要拿去汇报时才做
+1. **继续跑，用真实数据打磨规则**（最该做的）—— 每天看日报，分类错了补 `config/rules.yaml`，指标口径不对改 `aggregate.py`
+2. **配视觉模型** —— 现在完全走规则（40 条覆盖约 80%）；配好后 B 档才启用（`FOCUSPET_KEY` + `analyze.endpoint/model`）。注意：配了模型批次会从 1 分钟回到 15 分钟
+3. **GitHub 协作铺开** —— 分支保护规则、加协作者、GitHub Actions 跑 `--demo` 冒烟测试（Linux runner 上可行，demo 不依赖 Windows）
+4. **金标集 100 条** —— 11.7 说的那个本子，是判断「改规则后变好还是变坏」的唯一依据
+5. **M4 收尾** —— 托盘里「开始专注 / 休息」的闭环、日报上的纠错入口（`judge/learn.py` 已有能力，缺 UI）
+6. **M5 剩下的趋势** —— 周报/月报已做；还差跨月趋势折线、年度汇总
+7. **打包成 exe** —— PyInstaller，单文件，启动慢 1 秒可以接受
+8. **精简版 15 页 / 评审 PPT / 成本测算表** —— 只有在要拿去汇报时才做
 
 ---
 
@@ -246,18 +269,22 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 
 工作区：就是含有 HANDOFF.md 的这个目录（工作区可以整体移动，本文不写死盘符）
 
+现状：代码 v0.3.0 正在我机器上真实运行（每天 22:00 出日报、周日 21:00 周报、月末月报），
+仓库已推到 GitHub：https://github.com/Misaki-asahi/yuguang
+
 动手前按顺序读：
 1) HANDOFF.md —— 项目交接与当前状态（必读，读了再动手）
 2) focuspet/README.md —— 代码侧怎么跑、目录、限制
 3) 余光_流程_大纲_设计方案_v1.1.docx —— 当前交付的 40 页设计文档（v1.0 是存档，别引用）
-4) content/*.md —— 文档的 Markdown 源文；focuspet/ —— 代码
+4) content/*.md —— 文档源文；focuspet/ —— 代码
 
 必须守住的约束：
 - 定位是「个人自用工具、MVP 优先」，不要往商业化或课程作品上靠
-- 三条核心判断不要推翻：元数据优先截图兜底；先有目标声明才有摸鱼判定；宁可漏报不可误报
+- 四条核心判断不要推翻：元数据优先截图兜底；先有目标声明才有摸鱼判定；宁可漏报不可误报；目标外但在学习/工作不提醒（详见第 4 节）
 - MVP 只做 Windows，手机端是 P2
 - 改文字改 content/*.md 后跑 build_doc.py；改代码改 focuspet/ 下的文件，用 --demo 自测
 - 不要手改 docx，也不要动 大纲.docx（那是原始构想，只读）
+- **永远不要把 focuspet/data/ 或 config.yaml 提交上去**（里面有截图和窗口标题）
 
 这次要做的是：<在这里写具体需求>
 ```
@@ -293,5 +320,6 @@ Set-Location <工作区根>
 - **每次会话结束前**：更新第 0 节（现状）和第 8 节（未完成），刷新顶部日期
 - **交付物有变更时**：同步第 3 节和第 5 节的图号表，版本号 +0.1
 - **代码有变更时**：同步第 3.3 节和 `focuspet/README.md` 的「现在做到哪了」
+- **代码提交后**：`git add -A && git commit && git push`，让远端和本地一致（远端 = 交接的一部分）
 - **不要把设计内容抄回本文件**：指到 docx 的章节号即可，抄了就会两份不同步
 - 本文件是"给下一个会话看的"，不是"给用户看的产品文档"，语气可以直白，省略客套
