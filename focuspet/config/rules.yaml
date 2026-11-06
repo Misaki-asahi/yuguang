@@ -1,0 +1,215 @@
+# 分类规则表（设计方案 附录 B 的起始版，40 条）
+# 规则一律进 YAML，改规则不用改代码。
+# weight >= 0.9 直接用规则结论；0.6~0.9 与模型结论交叉验证；< 0.6 交给模型。
+# 每条带 id 和一句 note，三个月不清就清一次（17 节风险表）。
+
+version: 1
+
+rules:
+  # ---------------------------------------------------------------- 开发
+  - id: dev_ide
+    note: 编辑器里写东西，最深的深度工作信号
+    when: {proc: [Code.exe, "Code - Insiders.exe", Cursor.exe, pycharm64.exe, idea64.exe, devenv.exe, sublime_text.exe, notepad++.exe]}
+    then: {category: deep_work, weight: 0.95, activity: 在编辑器里写代码}
+
+  - id: dev_terminal
+    note: 终端调试、跑命令，同样是深度工作
+    when: {proc: [WindowsTerminal.exe, powershell.exe, pwsh.exe, cmd.exe, conhost.exe, wt.exe]}
+    then: {category: deep_work, weight: 0.85, activity: 在终端里跑命令}
+
+  - id: dev_notebook
+    note: Notebook 与数据库客户端，介于开发和查询之间
+    when: {proc: [jupyter-notebook.exe, DBeaver.exe, Navicat.exe, redis-cli.exe]}
+    then: {category: deep_work, weight: 0.9, activity: 在数据工具里操作}
+
+  - id: dev_api
+    note: 接口调试工具，通常是开发中的一环
+    when: {proc: [Postman.exe, Apifox.exe, Insomnia.exe]}
+    then: {category: deep_work, weight: 0.85, activity: 在调接口}
+
+  - id: ai_workbench
+    note: AI 编程/工作台类客户端，地位等同编辑器
+    when: {proc: ["DeepSeek Harness.exe", DeepSeek.exe, CherryStudio.exe, "Cherry Studio.exe", Chatbox.exe, Windsurf.exe, Trae.exe]}
+    then: {category: deep_work, weight: 0.8, activity: 在 AI 工具里干活}
+
+  - id: ai_web
+    note: 浏览器里的 AI 助手，多数时候是查资料或干活
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [ChatGPT, Claude, Gemini, DeepSeek, 通义, 文心一言, Kimi, 豆包]}
+    then: {category: learning, weight: 0.6, activity: 在问 AI}
+
+  - id: desktop_toy
+    note: 桌面挂件/宠物，纯背景程序，不算工作也不算摸鱼
+    when: {proc: [BongoCat.exe]}
+    then: {category: system, weight: 0.6, activity: 桌面挂件}
+
+  # ---------------------------------------------------------------- 办公
+  - id: office_doc
+    note: 文档、表格、演示，写作类深度工作
+    when: {proc: [WINWORD.EXE, EXCEL.EXE, POWERPNT.EXE, WPS.exe, et.exe, wpp.exe]}
+    then: {category: deep_work, weight: 0.9, activity: 在写文档或表格}
+
+  - id: notes_app
+    note: 笔记与知识库，默认按深度工作算
+    when: {proc: [Obsidian.exe, Typora.exe, Notion.exe, ONENOTE.EXE, Joplin.exe, Logseq.exe]}
+    then: {category: deep_work, weight: 0.85, activity: 在整理笔记}
+
+  - id: design_tool
+    note: 设计与创作工具
+    when: {proc: [Photoshop.exe, Illustrator.exe, "Adobe XD.exe", figma.exe, blender.exe, "AfterFX.exe"]}
+    then: {category: deep_work, weight: 0.9, activity: 在做设计}
+
+  - id: mail_client
+    note: 邮件是典型的浅层工作
+    when: {proc: [OUTLOOK.EXE, foxmail.exe, "Thunderbird.exe"]}
+    then: {category: shallow_work, weight: 0.8, activity: 在处理邮件}
+
+  - id: meeting_exempt
+    note: 会议不算摸鱼，且默认豁免
+    when: {proc: [Teams.exe, ms-teams.exe, Zoom.exe, wemeetapp.exe, DingTalk.exe, Feishu.exe, Lark.exe]}
+    then: {category: shallow_work, weight: 0.85, exempt: true, activity: 在开会}
+
+  - id: im_chat
+    note: 聊天客户端按浅层工作算，权重压得低，误判了也翻不了天
+    when: {proc: [WeChat.exe, Weixin.exe, QQ.exe, "WeChatAppEx.exe", WXWork.exe, "企业微信.exe"]}
+    then: {category: shallow_work, weight: 0.6, activity: 在处理消息}
+
+  # ---------------------------------------------------------------- 学习
+  - id: browser_docs
+    note: 浏览器里看文档/知识库
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [文档, 语雀, 飞书, 知识库, Notion, 帮助中心]}
+    then: {category: learning, weight: 0.8, activity: 在查文档}
+
+  - id: browser_dev
+    note: 技术问答与代码托管，几乎只出现在干活时
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [Stack Overflow, GitHub, MDN, 掘金, CSDN, 博客园, StackOverflow]}
+    then: {category: learning, weight: 0.85, activity: 在查技术资料}
+
+  - id: browser_mooc
+    note: 课程与教程站
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [慕课, Coursera, 网易公开课, Bilibili 课堂, 学习通]}
+    then: {category: learning, weight: 0.8, activity: 在看课程}
+
+  - id: read_app
+    note: 阅读器，默认按学习算
+    when: {proc: [Acrobat.exe, AcroRd32.exe, FoxitReader.exe, "SumatraPDF.exe", "微信读书.exe"]}
+    then: {category: learning, weight: 0.75, activity: 在读文档}
+
+  # ---------------------------------------------------------------- 娱乐
+  - id: video_site
+    note: 视频站，最明确的消耗信号
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [哔哩哔哩, bilibili, YouTube, 抖音, 爱奇艺, 腾讯视频, 优酷, Netflix]}
+    then: {category: entertainment, weight: 0.9, activity: 在看视频}
+
+  - id: game_launcher
+    note: 游戏平台启动器
+    when: {proc: [Steam.exe, EpicGamesLauncher.exe, WeGame.exe, "Battle.net.exe", UbisoftConnect.exe]}
+    then: {category: entertainment, weight: 0.95, activity: 在游戏平台}
+
+  - id: game_fullscreen
+    note: 全屏独占游戏的典型特征
+    when: {title_contains: [DirectX, "- Unity", "Unreal Engine"]}
+    then: {category: entertainment, weight: 0.9, activity: 在玩游戏}
+
+  - id: media_player
+    note: 本地播放器
+    when: {proc: [vlc.exe, PotPlayerMini64.exe, "mpv.exe", "QQPlayer.exe"]}
+    then: {category: entertainment, weight: 0.85, activity: 在看片}
+
+  - id: short_video_app
+    note: 短视频与直播客户端
+    when: {proc: [抖音.exe, 快手.exe, Douyin.exe, "哔哩哔哩.exe"]}
+    then: {category: entertainment, weight: 0.9, activity: 在刷短视频}
+
+  # ---------------------------------------------------------------- 无目的浏览
+  - id: social_feed
+    note: 信息流与问答社区，容易从查资料滑向无目的浏览
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [微博, 小红书, 知乎, 贴吧, 虎扑]}
+    then: {category: aimless, weight: 0.75, activity: 在刷信息流}
+
+  - id: browser_home
+    note: 只有新标签页、没有实际内容
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [新标签页, New Tab]}
+    then: {category: aimless, weight: 0.6, activity: 停在新标签页}
+
+  # ---------------------------------------------------------------- 生活
+  - id: shopping_site
+    note: 购物与电商，生活事务，不算坏事
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [淘宝, 京东, 拼多多, 天猫, 闲鱼, Amazon]}
+    then: {category: life, weight: 0.8, activity: 在逛购物网站}
+
+  - id: finance_site
+    note: 支付与银行
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [支付宝, 网上银行, 招商银行, 微信支付]}
+    then: {category: life, weight: 0.85, activity: 在处理账务}
+
+  - id: music_app
+    note: 音乐常驻后台，单独占用时算生活
+    when: {proc: [cloudmusic.exe, QQMusic.exe, Spotify.exe, "foobar2000.exe"]}
+    then: {category: life, weight: 0.7, activity: 在听音乐}
+
+  - id: chat_tool
+    note: 非会议类即时通讯客户端
+    when: {proc: [Telegram.exe, Slack.exe, Discord.exe]}
+    then: {category: shallow_work, weight: 0.6, activity: 在处理消息}
+
+  # ---------------------------------------------------------------- 系统
+  - id: file_explorer
+    note: 资源管理器，纯系统操作
+    when: {proc: [explorer.exe]}
+    then: {category: system, weight: 0.7, activity: 在翻文件}
+
+  - id: sys_settings
+    note: 设置、任务管理器、控制面板
+    when: {proc: [SystemSettings.exe, Taskmgr.exe, control.exe, "ApplicationFrameHost.exe"], title_contains: [设置, 任务管理器, 控制面板]}
+    then: {category: system, weight: 0.8, activity: 在调系统设置}
+
+  - id: os_lock
+    note: 锁屏与登录界面
+    when: {proc: [LockApp.exe, LogonUI.exe]}
+    then: {category: system, weight: 0.9, activity: 锁屏中}
+
+  - id: installer
+    note: 安装与更新程序
+    when: {proc: [msiexec.exe, setup.exe, "Update.exe"], title_contains: [安装, 更新]}
+    then: {category: system, weight: 0.8, activity: 在装软件}
+
+  - id: cloud_drive
+    note: 网盘同步窗口
+    when: {proc: [BaiduNetdisk.exe, OneDrive.exe, Dropbox.exe, "115.exe"]}
+    then: {category: system, weight: 0.7, activity: 在同步网盘}
+
+  - id: downloader
+    note: 下载工具
+    when: {proc: [Thunder.exe, IDMan.exe, "Motrix.exe"]}
+    then: {category: system, weight: 0.75, activity: 在下载文件}
+
+  - id: remote_desktop
+    note: 远程桌面，按浅层工作算
+    when: {proc: [mstsc.exe, "SunloginClient.exe", ToDesk.exe]}
+    then: {category: shallow_work, weight: 0.75, activity: 在远程操作}
+
+  - id: todo_app
+    note: 待办与日历
+    when: {proc: [TickTick.exe, "滴答清单.exe", "Notion Calendar.exe"]}
+    then: {category: shallow_work, weight: 0.75, activity: 在排计划}
+
+  # ---------------------------------------------------------------- 敏感与兜底
+  - id: sensitive_title
+    note: 命中即脱敏，不参与分类
+    when: {title_contains: [密码, 转账, 支付, 身份证, 银行卡]}
+    then: {category: unknown, weight: 1.0, sensitive: true, activity: 敏感窗口}
+
+  - id: password_manager
+    note: 密码管理器整类豁免截图与记录
+    when: {proc: [KeePass.exe, KeePassXC.exe, 1Password.exe, Bitwarden.exe]}
+    then: {category: unknown, weight: 1.0, sensitive: true, activity: 密码管理器}
+
+  - id: browser_generic
+    note: 浏览器里没有命中具体站点，交给模型看画面
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe]}
+    then: {category: unknown, weight: 0.3, activity: 浏览器中}
+
+  - id: unknown_proc
+    note: 未知进程且没有标题
+    when: {title_contains: [""]}
+    then: {category: unknown, weight: 0.3, activity: 未知窗口}

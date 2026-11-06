@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>$title</title>
+<style>
+  :root{
+    --ink:#1F2937; --sub:#5B6675; --muted:#8A94A3; --navy:#1F4E79;
+    --accent:#B45309; --orange:#E07A28; --line:#E5E9EF; --bg:#FBFBFC; --card:#FFFFFF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .page{max-width:980px;margin:0 auto;padding:48px 32px 72px}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;
+        border-bottom:2px solid var(--navy);padding-bottom:16px;margin-bottom:28px;gap:24px}
+  .brand{color:var(--accent);font-size:13px;letter-spacing:.12em;margin-bottom:8px}
+  .head h1{font-size:32px;margin:0 0 6px;font-weight:700}
+  .head .range{font-size:13px;color:var(--muted)}
+
+  .conclusion{background:var(--card);border-left:4px solid var(--accent);
+              padding:22px 26px;border-radius:4px;box-shadow:0 1px 2px rgba(16,24,40,.05);
+              margin-bottom:24px}
+  .conclusion .line{font-size:19px;line-height:1.6;margin:0 0 8px}
+  .conclusion .sub{color:var(--sub);font-size:13px;margin:0;line-height:1.7}
+
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:36px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:14px 16px}
+  .card b{display:block;font-size:21px;font-weight:700;color:var(--navy);margin-bottom:4px}
+  .card span{font-size:12px;color:var(--muted)}
+  .card small{display:block;font-size:11px;color:var(--sub);margin-top:6px}
+
+  h2{font-size:15px;color:var(--navy);margin:0 0 14px;letter-spacing:.04em}
+  section{margin-bottom:36px}
+
+  .chart{display:flex;align-items:flex-end;gap:6px;height:200px;
+         padding:8px 2px 0;border-bottom:1px solid var(--line)}
+  .col{flex:1;display:flex;flex-direction:column;align-items:center;height:100%}
+  .bar{flex:1;width:100%;max-width:48px;display:flex;flex-direction:column-reverse}
+  .seg{width:100%;border-radius:2px 2px 0 0}
+  .seg.focus{background:var(--navy)}
+  .seg.cons{background:var(--orange);opacity:.85}
+  .col.empty .seg{background:#EDF0F3}
+  .lbl{font-size:10.5px;color:var(--muted);padding-top:6px;font-variant-numeric:tabular-nums}
+  .chart-legend{display:flex;gap:18px;margin-top:10px;font-size:12px;color:var(--sub)}
+  .sw{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:6px}
+
+  .cat{display:grid;grid-template-columns:88px 1fr 84px;gap:12px;align-items:center;
+       margin-bottom:9px;font-size:12.5px}
+  .cat .name{color:var(--sub)}
+  .cat .track{background:#F1F3F6;border-radius:3px;height:12px;overflow:hidden}
+  .cat .track i{display:block;height:100%;border-radius:3px}
+  .cat .val{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:11.5px;
+     border-bottom:1px solid var(--line);padding:8px 6px}
+  td{padding:7px 6px;border-bottom:1px solid #F2F4F7;color:var(--sub);
+     font-variant-numeric:tabular-nums}
+  td:first-child{color:var(--ink)}
+
+  .suggest{background:#FDF7F1;border:1px solid #F3E2D0;border-radius:6px;padding:20px 24px}
+  .suggest h2{color:var(--accent)}
+  .suggest p{margin:0;font-size:15px;line-height:1.7}
+  .muted{color:var(--muted);font-size:13px}
+
+  footer{border-top:1px solid var(--line);padding-top:14px;font-size:11.5px;color:var(--muted);
+         display:flex;justify-content:space-between;gap:16px}
+
+  @media (max-width:760px){
+    .cards{grid-template-columns:repeat(2,1fr)}
+    .head{flex-direction:column;align-items:flex-start}
+  }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header class="head">
+    <div>
+      <div class="brand">余光 · $period汇总</div>
+      <h1>$range</h1>
+      <div class="range">数据来自每天的时间块 · 明细清掉也不影响这里</div>
+    </div>
+  </header>
+
+  <section class="conclusion">
+    <p class="line">$summary</p>
+    <p class="sub">$sub</p>
+  </section>
+
+  <section class="cards">
+    $cards
+  </section>
+
+  <section>
+    <h2>每天的样子</h2>
+    <div class="chart">$chart</div>
+    <div class="chart-legend">
+      <span><i class="sw" style="background:#1F4E79"></i>专注</span>
+      <span><i class="sw" style="background:#E07A28"></i>消耗</span>
+      <span style="color:#8A94A3">柱子高度按当周期最长的一天归一</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>时间都去哪了</h2>
+    $categories
+  </section>
+
+  <section>
+    <h2>逐日明细</h2>
+    $table
+  </section>
+
+  <section class="suggest">
+    <h2>下个周期只做一件事</h2>
+    <p>$suggestion</p>
+  </section>
+
+  <footer>
+    <span>余光 v$version · 本地生成，不上传</span>
+    <span>$footer_right</span>
+  </footer>
+
+</main>
+</body>
+</html>
