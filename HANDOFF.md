@@ -62,7 +62,8 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 | `focuspet/README.md` | 代码侧的说明：跑法、目录、限制 | 随代码更新 |
 | `focuspet/docs/*.png` | 日报/周报/月报截图，GitHub 首页在用 | 由 `--demo` 后重截 |
 | `focuspet/data/` | 运行时数据：db / shots / reports / logs | 可随时删掉重建；**已 gitignore，绝不入库** |
-| `README.md` / `LICENSE` / `CONTRIBUTING.md` | 仓库门面（MIT 协议、贡献约定） | 对外口径改这里 |
+| `README.md` / `LICENSE` | 仓库门面（MIT 协议） | 对外口径改这里 |
+| `CONTRIBUTING.md` | 贡献约定，**用户要求不公开**：已从 git 历史里抹掉并入 gitignore，只在本地保留 | 需要时私下发给协作者，不要提交 |
 | `.github/` | issue 模板（bug / 功能）+ PR 模板 | 协作规则改这里 |
 | `.gitignore` / `.gitattributes` | 排除数据与密钥；docx/图片按二进制处理 | 加新运行时目录时要同步 |
 | `启动余光.bat` / `查看今日日报.bat` | 本机双击启动器（路径写死在用户机器上） | **已 gitignore**，别提交 |

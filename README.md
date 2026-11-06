@@ -126,7 +126,7 @@ HANDOFF.md           项目交接：现状、坑、下一步
 
 ## 参与贡献
 
-欢迎 issue 和 PR，具体约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。几条最常改的地方：
+欢迎 issue 和 PR。几条最常改的地方：
 
 - **分类规则不准** → 改 `focuspet/config/rules.yaml`，一条规则一个 id + 一句 note
 - **判定太吵 / 太安静** → 改 `focuspet/config.py` 里的 `judge` 默认值，并在 PR 里说明理由
