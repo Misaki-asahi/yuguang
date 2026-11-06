@@ -142,7 +142,7 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 
 仓库：**https://github.com/Misaki-asahi/yuguang**（公开，`main` 分支，本地已 `remote add origin`）
 
-- **59 个文件 / 1.7 MB**，两次提交；`.gitignore` 已排除 `focuspet/data/`、`*.db`、`config.yaml`、日志、两个本机 `.bat`、旧版 v1.0 文档
+- **59 个文件 / 1.7 MB**，提交历史干净（初始版本 → 模板 → 交接文档）；`.gitignore` 已排除 `focuspet/data/`、`*.db`、`config.yaml`、日志、两个本机 `.bat`、旧版 v1.0 文档
 - 已从远端重新 clone 验证：**不含任何截图 / 数据库 / 配置**；README 配图、规则表、LICENSE 的 raw 链接均 200
 - 发现过的坑：**GitHub 用户名是 `Misaki-asahi`，写成 `Misaki` 会报 `Repository not found`**（不是权限问题，是 URL 错了）
 - 用户知情：仓库当前公开；改 private 不影响已加协作者，但已有的 fork 不会跟着变私有；免费版私有仓库协作者上限约 3 人
