@@ -274,6 +274,60 @@ def _parse_hm(text: str) -> tuple[int, int]:
         return 21, 0
 
 
+def _cmd_unknown(store, days: int = 2) -> None:
+    """把「未识别」的窗口按出现次数排出来，方便照着补规则。"""
+    import collections
+    from .analyze.rules import RuleSet
+    from .capture.store import day_bounds, day_of
+
+    rs = RuleSet()
+    poll = int(store.kv_get("poll_sec", 5) or 5)
+    rows = []
+    now = time.time()
+    for i in range(max(1, days)):
+        rows += store.samples(*day_bounds(day_of(now - i * 86400)))
+
+    counter: collections.Counter = collections.Counter()
+    for r in rows:
+        if r["idle"] or r["sensitive"] or not (r["proc"] or ""):
+            continue
+        hit = rs.classify(r["proc"], r["title"] or "")
+        if hit.category == "unknown" and not hit.sensitive:
+            counter[((r["proc"] or "").lower(), (r["title"] or "").strip()[:64])] += 1
+
+    total = sum(counter.values())
+    print(f"最近 {days} 天：未识别采样 {total} 条，涉及 {len(counter)} 个窗口\n")
+    if not counter:
+        print("没有未识别的窗口，规则覆盖得挺好。")
+        return
+    print(f"{'条数':>5} {'约分钟':>7}  进程 / 标题")
+    for (proc, title), n in counter.most_common(20):
+        print(f"{n:>5} {n * poll / 60:>7.0f}  {proc} | {title}")
+    print("\n挑一条加进 focuspet/config/rules.yaml，然后：")
+    print("  python -m focuspet --reclassify <日期>   # 让历史数据也用上新规则")
+
+
+def _cmd_reclassify(cfg, store, day: str) -> int:
+    """用当前规则重跑某一天：只重算 analysis / block，采样和截图不动。"""
+    from .analyze.scheduler import Scheduler
+    from .capture.store import day_bounds, day_of
+
+    sched = Scheduler(cfg, store)
+    start, end = day_bounds(day)
+    limit = min(end, int(time.time())) if day == day_of(time.time()) else end
+    store._exec("DELETE FROM analysis WHERE date = ?", (day,))
+    store._exec("DELETE FROM block WHERE date = ?", (day,))
+    batches = 0
+    ws = start
+    while ws + sched.batch_sec <= limit:
+        if sched.process_window(ws, ws + sched.batch_sec):
+            batches += 1
+        ws += sched.batch_sec
+    blocks = sched.rebuild(day)
+    print(f"{day} 重新分类完成：{batches} 个批次 → {len(blocks)} 段时间块")
+    return 0
+
+
 def _summary(cfg, store, day: str) -> str:
     from .analyze.aggregate import metrics
     blocks = [dict(b) for b in store.blocks(day)]
@@ -288,6 +342,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--demo", action="store_true", help="造一天演示数据并生成日报")
     p.add_argument("--report", nargs="?", const="today", metavar="YYYY-MM-DD",
                    help="重新生成某天的日报并用浏览器打开（同日旧版会被覆盖）")
+    p.add_argument("--unknown", nargs="?", const=2, type=int, metavar="DAYS",
+                   help="列出最近 N 天里被判为「未识别」的窗口，用来补规则（默认 2 天）")
+    p.add_argument("--reclassify", nargs="?", const="today", metavar="YYYY-MM-DD",
+                   help="用当前规则重跑某天的分类（默认今天），历史时间块会更新")
     p.add_argument("--weekly", action="store_true", help="生成本周周报并打开")
     p.add_argument("--monthly", action="store_true", help="生成本月月报并打开")
     p.add_argument("--no-open", action="store_true",
@@ -323,6 +381,19 @@ def main(argv: list[str] | None = None) -> int:
         path = render_day(cfg, store, day, open_browser=not args.no_open)
         print(_summary(cfg, store, day))
         print(f"日报：{path}")
+        store.close()
+        return 0
+
+    if args.unknown:
+        store = Store()
+        _cmd_unknown(store, args.unknown)
+        store.close()
+        return 0
+
+    if args.reclassify:
+        store = Store()
+        day = day_of(time.time()) if args.reclassify == "today" else args.reclassify
+        _cmd_reclassify(cfg, store, day)
         store.close()
         return 0
 

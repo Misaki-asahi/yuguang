@@ -44,6 +44,10 @@ python -m focuspet --headless
 python -m focuspet --report              # 今天
 python -m focuspet --report 2026-11-05   # 指定日期
 python -m focuspet --report --no-open    # 只要文件，不弹浏览器
+
+# 6) 规则调优：先看哪些窗口没认出来，补完再把历史数据重算一遍
+python -m focuspet --unknown 2           # 列出最近 2 天被判为「未识别」的窗口
+python -m focuspet --reclassify          # 用当前规则重跑今天（也可指定日期）
 ```
 
 依赖：
@@ -98,7 +102,7 @@ focuspet/
 ├─ log.py                  # 按天轮转日志 + 心跳文件
 ├─ demo.py                 # 演示数据（占位图明确标注「非真实截图」）
 ├─ config.yaml             # 运行时生成，可直接改
-├─ config/rules.yaml       # 40 条分类规则，改规则不用改代码
+├─ config/rules.yaml       # 46 条分类规则，改规则不用改代码
 ├─ capture/
 │  ├─ win.py               # 前台窗口 / 空闲 / 全屏 / 标题脱敏（纯 ctypes）
 │  ├─ shot.py              # mss 截图 + dHash 去重 + 过期清理

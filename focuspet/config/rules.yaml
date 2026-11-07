@@ -29,7 +29,7 @@ rules:
 
   - id: ai_workbench
     note: AI 编程/工作台类客户端，地位等同编辑器
-    when: {proc: ["DeepSeek Harness.exe", DeepSeek.exe, CherryStudio.exe, "Cherry Studio.exe", Chatbox.exe, Windsurf.exe, Trae.exe]}
+    when: {proc: ["DeepSeek Harness.exe", DeepSeek.exe, CherryStudio.exe, "Cherry Studio.exe", Chatbox.exe, Windsurf.exe, Trae.exe, "Trae cn.exe"]}
     then: {category: deep_work, weight: 0.8, activity: 在 AI 工具里干活}
 
   - id: ai_web
@@ -89,6 +89,30 @@ rules:
     when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [慕课, Coursera, 网易公开课, Bilibili 课堂, 学习通]}
     then: {category: learning, weight: 0.8, activity: 在看课程}
 
+  - id: browser_edu
+    note: 网课、题库、作业考试类页面——标题里带这些词的多半在学习
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe], title_contains: [课程, 网课, 公开课, 慕课, 错题, 题库, 作业, 考试, 讲义, 课件, 题解, 学习通, 学堂在线, 雨课堂]}
+    then: {category: learning, weight: 0.78, activity: 在上课或做题}
+
+  - id: browser_own_report
+    note: 在看余光自己的日报/周报/月报——复盘时间，算浅层工作
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe], title_contains: [时间账单, 每周汇总, 本月汇总]}
+    then: {category: shallow_work, weight: 0.6, activity: 在看时间账单}
+
+  - id: browser_github
+    note: GitHub 的仓库页——标题常是 owner/repo（也可能是「美咲朝日/夕光」这种中文名）
+    when:
+      proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe]
+      title_regex: "(^|[ ·])[A-Za-z\\u4e00-\\u9fa5][\\w\\u4e00-\\u9fa5.-]*/[\\w\\u4e00-\\u9fa5.-]+"
+    then: {category: deep_work, weight: 0.85, activity: 在 GitHub 上干活}
+
+  - id: browser_github_ui
+    note: GitHub 的设置 / PR / Issue 这类页面，标题里没有仓库全名
+    when:
+      proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe]
+      title_contains: [GitHub, "Pull Request", "Pull requests", 拉取请求, 合并请求, "Contributors to", "Issues ·", "Branches ·", "Actions ·", "Manage access", "Confirm access", "New repository", Ruleset, "Your Stars", "Your repositories"]
+    then: {category: deep_work, weight: 0.8, activity: 在 GitHub 上干活}
+
   - id: read_app
     note: 阅读器，默认按学习算
     when: {proc: [Acrobat.exe, AcroRd32.exe, FoxitReader.exe, "SumatraPDF.exe", "微信读书.exe"]}
@@ -127,8 +151,8 @@ rules:
     then: {category: aimless, weight: 0.75, activity: 在刷信息流}
 
   - id: browser_home
-    note: 只有新标签页、没有实际内容
-    when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [新标签页, New Tab]}
+    note: 只有新标签页、没有实际内容（Edge 中文版叫「新建标签页」）
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe], title_contains: [新标签页, 新建标签页, New Tab]}
     then: {category: aimless, weight: 0.6, activity: 停在新标签页}
 
   # ---------------------------------------------------------------- 生活
@@ -162,6 +186,16 @@ rules:
     note: 设置、任务管理器、控制面板
     when: {proc: [SystemSettings.exe, Taskmgr.exe, control.exe, "ApplicationFrameHost.exe"], title_contains: [设置, 任务管理器, 控制面板]}
     then: {category: system, weight: 0.8, activity: 在调系统设置}
+
+  - id: sys_shell
+    note: 快速设置、开始菜单这类系统浮层
+    when: {proc: [shellhost.exe, StartMenuExperienceHost.exe, SearchHost.exe]}
+    then: {category: system, weight: 0.6, activity: 系统浮层}
+
+  - id: net_tool
+    note: 代理 / 网络工具，后台组件，不参与判定
+    when: {proc: ["Clash Verge.exe", "clash-verge.exe", Clash.exe, v2rayN.exe, "sing-box.exe"]}
+    then: {category: system, weight: 0.65, activity: 网络工具}
 
   - id: os_lock
     note: 锁屏与登录界面

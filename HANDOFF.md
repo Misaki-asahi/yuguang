@@ -100,7 +100,7 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 **已完成并实机验证：**
 
 - **采集**：ctypes 窗口探针（标题 / 进程 / PID，LRU 缓存）、`GetLastInputInfo` 空闲检测、mss 截图 1280 长边 + q70、dHash 汉明 ≤6 去重、黑屏（DRM）检测、SQLite WAL + 写失败落 jsonl + 启动回放
-- **分析**：40 条 YAML 规则（A 档，零成本）、OpenAI 协议视觉客户端（B 档，三道校验 + 重试 + 预算熔断）、A/B 档切换（规则覆盖率 ≥75% 就不花钱）。**批次窗口分两种**：没配模型时按 1 分钟一批（纯规则零成本，概览/日报才不至于等 15 分钟还是 0）；配了模型才是 15 分钟一批
+- **分析**：46 条 YAML 规则（A 档，零成本）——浏览器教育站 / GitHub 仓库页与中文界面 / 余光自己的报表都单独成规则、OpenAI 协议视觉客户端（B 档，三道校验 + 重试 + 预算熔断）、A/B 档切换（规则覆盖率 ≥75% 就不花钱）。**批次窗口分两种**：没配模型时按 1 分钟一批（纯规则零成本，概览/日报才不至于等 15 分钟还是 0）；配了模型才是 15 分钟一批
 - **聚合**：段合并（gap 180s / min_len 60s，deep_work 与 learning 视为同类）、灰段补洞、五项指标、文案模板
 - **判定**：全否才退出的判定链；L1→L2→L3 按 2/3 分钟升级；冷却与日上限；同一段离题的升级不被冷却挡住
 - **周报/月报**（`report/summary.py`）：每周日 21:00、每月最后一天 21:00 自动出，读 `block` 表汇总（清明细/截图不影响历史）；含每日柱状图、分类占比、逐日明细、与上周期对比；`--weekly` / `--monthly` 可手动生成，同周期覆盖同一文件
@@ -252,6 +252,7 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 跑 `--demo` 把当天真实数据清空了 | 演示默认用「今天」，且 `seed()` 会 `clear_day` + 删当天截图 | **已修**：`--demo` 改用 `demo.db`/`shots-demo`/`demo.html`，并加 `assert` 禁止打开真实库 |
 | 「今日概览」全是 0，但日志明明在采样 | 概览读的是 `block`，而 block 只在批次结束时生成；原来不分模式一律 15 分钟一批，重启后要等满一个窗口 | **已修**：没配视觉模型时批次改 1 分钟（零成本），概览里同时显示采样条数与起点 |
 | 自己的主窗口被记成「未识别」，有效比 0 | 规则表里没有这个进程（如 `DeepSeek Harness.exe`、`BongoCat.exe`） | 补 `config/rules.yaml`；已加 AI 工作台 / AI 站点 / 桌面挂件三条，现在 40 条 |
+| 浏览器里很多窗口判成「未识别」，日报一片灰 | 浏览器规则只认标题关键词，`browser_generic` 兜底就是 unknown；没有模型时没人来补 | 已补 `browser_edu`（课程/错题/作业）、`browser_github[_ui]`（仓库页 + 中文界面）、`browser_own_report`（看自己的账单）等 6 条，11-06 当天未识别从 ~176 分钟降到 77 分钟。日常用 `--unknown N` 看还缺什么，`--reclassify <日期>` 让历史数据用上新规则 |
 | 声明了目标，但「深度专注」还是 0 | 专注只累计 `on_task=true` 且 ≥25 分钟的 deep_work 段；没目标时 `on_task` 是 null | 先声明目标；概览底部现在会直接提示这一点，启动 1 分钟也会弹一次提醒 |
 | `git push` 报 `Repository not found` | 大概率是 **URL 里的 GitHub 用户名写错**（这次写成了 `Misaki`，实际是 `Misaki-asahi`），不是权限问题 | 先去网页确认仓库地址，再 `git remote set-url origin <正确地址>` |
 | 担心把截图/数据库推上去 | `focuspet/data/` 与 `config.yaml` 已在 `.gitignore`，误用 `git add -f` 会进历史，删除需要 `git filter-repo` | 提交前 `git status` 扫一眼；永不对 data 目录用 `-f` |

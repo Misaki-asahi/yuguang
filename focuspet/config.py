@@ -30,7 +30,7 @@ PENDING_JSONL = DATA / "pending.jsonl"
 DEFAULTS = {
     "app": {
         "name": "余光",
-        "version": "0.3.0",
+        "version": "0.3.1",
     },
     "capture": {
         "window_poll_sec": 5,
