@@ -12,10 +12,24 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QDialog, QDialogButtonBox,
                                QSpinBox, QVBoxLayout)
 
 from .. import config, maintenance
+from ..analyze import vlm
 
-PRIVACY = [("masked", "脱敏上云（默认：裁掉任务栏再发送）"),
-           ("local", "全本地（只送本地模型，不联网）"),
+PRIVACY = [("masked", "脱敏上云（裁掉任务栏后发给「你配置的」模型）"),
+           ("local", "全本地（只发给本机 Ollama，不出本机）"),
            ("meta_only", "只记元数据（完全不截图）")]
+
+
+def _network_state(cfg: dict, mode: str) -> str:
+    """把「到底联不联网」说清楚——这一栏最容易让人误会。"""
+    if mode == "meta_only":
+        return "当前：绝不截图；只把窗口标题发给模型（若未配置模型则完全不联网）"
+    if mode == "local":
+        return "当前：截图只在本地；只有配置了本地模型地址才会连本机"
+    if not vlm.enabled(cfg):
+        return "当前：不联网 —— 还没配置视觉模型，截图和标题都只留在本机"
+    endpoint = cfg["analyze"].get("endpoint") or ""
+    model = cfg["analyze"].get("model") or ""
+    return f"当前：会发送到 {endpoint}（{model}）——裁掉任务栏后的截图 + 窗口标题"
 
 
 class SettingsDialog(QDialog):
@@ -34,6 +48,12 @@ class SettingsDialog(QDialog):
         idx = max(0, self.privacy.findData(cfg["privacy"].get("mode", "masked")))
         self.privacy.setCurrentIndex(idx)
         form.addRow("隐私档", self.privacy)
+
+        self.lbl_net = QLabel(_network_state(cfg, self.privacy.currentData()))
+        self.lbl_net.setWordWrap(True)
+        self.lbl_net.setStyleSheet("color:#8A94A3;font-size:11.5px")
+        self.privacy.currentIndexChanged.connect(self._refresh_net_hint)
+        form.addRow("", self.lbl_net)
 
         self.interval = QSpinBox()
         self.interval.setRange(15, 3600)
@@ -122,6 +142,9 @@ class SettingsDialog(QDialog):
         box.addWidget(data_box)
         box.addWidget(hint)
         box.addWidget(buttons)
+
+    def _refresh_net_hint(self) -> None:
+        self.lbl_net.setText(_network_state(self.cfg, self.privacy.currentData()))
 
     # ------------------------------------------------------------ 数据按钮
     def _open_shots(self) -> None:
