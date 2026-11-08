@@ -74,6 +74,15 @@ pip install -r focuspet\requirements.txt
 因为那玩意儿可能被绑到编辑器上（这台机器就是 VSCode）。浏览器按 Edge → Chrome → Firefox
 的顺序找，也可以在 `config.yaml` 的 `report.browser` 里写死路径。
 
+**控制面板**（托盘图标找不到时的主入口）：
+
+```powershell
+python -m focuspet --panel      # 启动并打开控制面板；已在运行则唤起
+```
+
+面板里能做的事：看今日数字、声明目标、打开今日日报 / 本周周报 / 本月月报、
+暂停采集、开关开机自启、改日报生成时间、退出。
+
 **找不到托盘图标？**
 
 Windows 11 会把新图标默认塞进「隐藏图标」。两条路：

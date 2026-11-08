@@ -19,6 +19,7 @@ from .. import config
 from ..analyze.aggregate import fmt_duration, metrics
 from ..capture.store import day_bounds, day_of
 from ..log import get
+from .panel import ControlPanel
 from .pet import Pet
 from .settings import SettingsDialog
 
@@ -64,6 +65,7 @@ class Tray(QSystemTrayIcon):
         self.app = app
         self.pet = pet
         self.bridge = bridge
+        self.panel = None
         self.setToolTip("余光 · 用余光看着你")
         self._build_menu()
         self.activated.connect(self._on_activated)
@@ -80,6 +82,8 @@ class Tray(QSystemTrayIcon):
         self.act_pause = QAction("暂停采集", m)
         self.act_pause.setCheckable(True)
         self.act_pause.triggered.connect(self._toggle_pause)
+        self.act_panel = QAction("打开控制面板", m)
+        self.act_panel.triggered.connect(self.open_panel)
         self.act_today = QAction("今日概览", m)
         self.act_today.triggered.connect(self._show_today)
         self.act_report = QAction("打开今日日报", m)
@@ -93,6 +97,7 @@ class Tray(QSystemTrayIcon):
         self.act_quit = QAction("退出", m)
         self.act_quit.triggered.connect(self._quit)
 
+        m.addAction(self.act_panel)
         m.addAction(self.act_focus)
         m.addSeparator()
         m.addAction(self.act_pause)
@@ -107,7 +112,16 @@ class Tray(QSystemTrayIcon):
 
     def _on_activated(self, reason):
         if reason == QSystemTrayIcon.Trigger:
-            self._show_today()
+            self.open_panel()
+
+    def open_panel(self) -> None:
+        """控制面板：托盘菜单、第二次启动、--panel 都走这里。"""
+        if self.panel is None:
+            self.panel = ControlPanel(self.app)
+        self.panel.show()
+        self.panel.raise_()
+        self.panel.activateWindow()
+        self.panel.refresh()
 
     def message(self, title: str, text: str) -> None:
         self.showMessage(title, text, QSystemTrayIcon.Information, 3000)
@@ -181,8 +195,8 @@ class Tray(QSystemTrayIcon):
     def _drain(self):
         for level, text in self.bridge.drain():
             if level == -1:                 # 来自「第二次启动」的唤起请求
-                log.info("收到唤起请求，打开今日概览")
-                self._show_today()
+                log.info("收到唤起请求，打开控制面板")
+                self.open_panel()
                 continue
             if self.app.cfg["ui"].get("pet_enabled", True):
                 self.pet.alert(text, 5000, level)
@@ -190,7 +204,7 @@ class Tray(QSystemTrayIcon):
                 self.showMessage("余光", text, QSystemTrayIcon.Information, 4000)
 
 
-def run_ui(app) -> int:
+def run_ui(app, show_panel: bool = False) -> int:
     qapp = QApplication(sys.argv)
     qapp.setQuitOnLastWindowClosed(False)
 
@@ -203,6 +217,9 @@ def run_ui(app) -> int:
     if app.cfg["ui"].get("pet_enabled", True):
         pet.show()
         QTimer.singleShot(400, pet.show_idle_pos)
+
+    if show_panel:                       # 快捷方式带 --panel：启动后直接把面板摆出来
+        QTimer.singleShot(300, tray.open_panel)
 
     def _nudge_goal():
         """没声明目标就没有「摸鱼判定」，开机一分钟提醒一次。"""

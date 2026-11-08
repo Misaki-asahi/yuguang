@@ -352,6 +352,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="配合 --report/--weekly/--monthly：只生成不打开浏览器")
     p.add_argument("--once", action="store_true", help="只采集一次，用于验证环境")
     p.add_argument("--headless", action="store_true", help="不启动托盘和桌宠")
+    p.add_argument("--panel", action="store_true",
+                   help="启动后直接打开控制面板（桌面快捷方式用）")
     p.add_argument("--duration", type=int, default=0,
                    help="跑够这么多秒就退出，用于验证环境")
     p.add_argument("--verbose", action="store_true")
@@ -446,7 +448,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         from .ui.tray import run_ui
-        return run_ui(app)
+        return run_ui(app, show_panel=args.panel)
     except ImportError:
         log.warning("PySide6 不可用，退回无界面模式")
         args.headless = True
