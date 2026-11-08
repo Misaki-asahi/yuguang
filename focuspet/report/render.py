@@ -59,7 +59,11 @@ def find_browser() -> str | None:
 
 
 def open_in_browser(path: Path | str, cfg: dict | None = None) -> bool:
-    """在浏览器里打开日报。返回是否成功发起了打开动作。"""
+    """在浏览器里打开日报。
+
+    返回的是「真的送到了」而不只是「我调用过了」——浏览器启动器在某些环境里
+    会立刻退出（返回码非 0），以前一律返回 True，界面就会骗人说「已打开」。
+    """
     path = Path(path)
     configured = ""
     if cfg:
@@ -68,18 +72,48 @@ def open_in_browser(path: Path | str, cfg: dict | None = None) -> bool:
 
     if exe:
         try:
-            subprocess.Popen([exe, path.resolve().as_uri()],
-                             close_fds=True, creationflags=getattr(subprocess, "DETACHED_PROCESS", 0))
-            return True
+            proc = subprocess.Popen(
+                [exe, path.resolve().as_uri()],
+                close_fds=True,
+                creationflags=getattr(subprocess, "DETACHED_PROCESS", 0),
+            )
+            # 启动器正常会继续活着（或转交后台进程）；秒退且非 0 就是没起来
+            try:
+                code = proc.wait(timeout=1.2)
+            except subprocess.TimeoutExpired:
+                return True                      # 还在跑，认为成功
+            if code == 0:
+                return True
+            log.warning("浏览器启动器退出码 %s，改走系统关联", code)
         except Exception as exc:
             log.warning("用 %s 打开失败：%s，改走系统关联", exe, exc)
 
+    # 兜底：交给系统关联——但只有关联对象真是浏览器时才这么做，
+    # 否则会把日报丢进 VSCode（这台机器的 .html 就关联到了 VSCode）。
+    if _assoc_is_browser():
+        try:
+            os.startfile(str(path))
+            return True
+        except Exception:
+            pass
+
+    log.warning("无法自动打开浏览器，请手动打开 %s", path)
+    return False
+
+
+def _assoc_is_browser() -> bool:
+    """`.html` 的默认打开方式是不是浏览器。"""
     try:
-        os.startfile(str(path))          # 兜底：至少把文件交给系统
-        return True
-    except Exception:
-        log.warning("无法自动打开浏览器，请手动打开 %s", path)
+        import winreg
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.html\UserChoice",
+        )
+        prog, _ = winreg.QueryValueEx(key, "ProgId")
+    except OSError:
         return False
+    prog = str(prog or "").lower()
+    return any(x in prog for x in ("chrome", "edge", "firefox", "browser"))
 
 
 def _esc(s) -> str:

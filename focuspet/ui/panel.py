@@ -188,12 +188,24 @@ class ControlPanel(QWidget):
         self.refresh()
 
     def _open_daily(self) -> None:
-        from ..report.render import render_day
+        from ..report.render import open_in_browser, render_day
         try:
-            path = render_day(self.app.cfg, self.app.store, day_of(time.time()))
-            QMessageBox.information(self, "日报", f"已生成并打开：\n{path.name}")
+            path = render_day(self.app.cfg, self.app.store, day_of(time.time()),
+                              open_browser=False)
+            self._after_render(path, "日报")
         except Exception as exc:
             QMessageBox.warning(self, "生成失败", str(exc))
+
+    def _after_render(self, path, what: str) -> None:
+        """先报告「生成了」，再说清楚浏览器到底开没开——别骗人。"""
+        from ..report.render import open_in_browser
+        if open_in_browser(path, self.app.cfg):
+            QMessageBox.information(self, what, f"已生成并打开：\n{path.name}")
+            return
+        QMessageBox.warning(
+            self, what,
+            f"已生成，但浏览器没能自动打开。\n\n文件位置：\n{path}\n\n"
+            "可以直接到上面这个路径双击打开；也可以在设置里指定 report.browser。")
 
     def _open_weekly(self) -> None:
         self._open_period("weekly")
@@ -204,8 +216,8 @@ class ControlPanel(QWidget):
     def _open_period(self, kind: str) -> None:
         from ..report.summary import render_period
         try:
-            path = render_period(self.app.cfg, self.app.store, kind)
-            QMessageBox.information(self, "汇总", f"已生成并打开：\n{path.name}")
+            path = render_period(self.app.cfg, self.app.store, kind, open_browser=False)
+            self._after_render(path, "汇总")
         except Exception as exc:
             QMessageBox.warning(self, "生成失败", str(exc))
 
