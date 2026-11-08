@@ -10,8 +10,8 @@ import queue
 import sys
 import time
 
-from PySide6.QtCore import QTimer, Qt
-from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
+from PySide6.QtCore import QTimer
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (QApplication, QInputDialog, QMenu, QMessageBox,
                                QSystemTrayIcon)
 
@@ -19,6 +19,7 @@ from .. import config
 from ..analyze.aggregate import fmt_duration, metrics
 from ..capture.store import day_bounds, day_of
 from ..log import get
+from .icons import app_icon
 from .panel import ControlPanel
 from .pet import Pet
 from .settings import SettingsDialog
@@ -45,18 +46,8 @@ class UiBridge:
 
 
 def _icon() -> QIcon:
-    pm = QPixmap(64, 64)
-    pm.fill(Qt.transparent)
-    p = QPainter(pm)
-    p.setRenderHint(QPainter.Antialiasing)
-    p.setPen(Qt.NoPen)
-    p.setBrush(QColor("#F6C87A"))
-    p.drawEllipse(6, 10, 52, 46)
-    p.setBrush(QColor("#3B3A36"))
-    p.drawEllipse(21, 28, 7, 8)
-    p.drawEllipse(37, 28, 7, 8)
-    p.end()
-    return QIcon(pm)
+    """图标来自 focuspet/assets/icon.ico，文件缺失时才退回代码画的简笔脸。"""
+    return app_icon()
 
 
 class Tray(QSystemTrayIcon):
@@ -207,6 +198,9 @@ class Tray(QSystemTrayIcon):
 def run_ui(app, show_panel: bool = False) -> int:
     qapp = QApplication(sys.argv)
     qapp.setQuitOnLastWindowClosed(False)
+    qapp.setApplicationName("余光")
+    qapp.setApplicationDisplayName("余光")
+    qapp.setWindowIcon(app_icon())          # 面板/对话框/任务栏都用同一张脸
 
     bridge = UiBridge()
     app.bridge = bridge

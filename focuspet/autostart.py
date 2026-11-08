@@ -72,12 +72,14 @@ def install(with_panel: bool = False) -> Path:
             pass
     target = pythonw()
     args = "-m focuspet --panel" if with_panel else "-m focuspet"
+    icon = PROJECT_ROOT / "focuspet" / "assets" / "icon.ico"
+    icon_arg = str(icon) if icon.exists() else str(target)
     ps = (
         f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');"
         f"$s.TargetPath='{target}';"
         f"$s.Arguments='{args}';"
         f"$s.WorkingDirectory='{PROJECT_ROOT}';"
-        f"$s.IconLocation='{target}';"
+        f"$s.IconLocation='{icon_arg}';"
         f"$s.Save()"
     )
     before = lnk.stat().st_mtime_ns if lnk.exists() else 0
