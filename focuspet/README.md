@@ -50,11 +50,19 @@ python -m focuspet --unknown 2           # 列出最近 2 天被判为「未识�
 python -m focuspet --reclassify          # 用当前规则重跑今天（也可指定日期）
 ```
 
-依赖：
+依赖（**建议装在项目自己的虚拟环境里**，别装进系统 Python）：
 
 ```powershell
-pip install mss Pillow psutil PyYAML PySide6-Essentials
+cd <仓库根目录>
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r focuspet\requirements.txt
 ```
+
+不激活也能用，直接调用 venv 里的解释器即可：`.venv\Scripts\python.exe -m focuspet`。
+
+> 为什么要 venv：依赖装在共享 Python 里，那个环境一旦被升级或重置，程序会突然报
+> `No module named 'yaml'` 起不来。这套配置就被这么坑过一次，所以自启脚本也优先找 `.venv`。
 
 `PySide6` 只用于托盘和桌宠；缺了会自动退回无界面模式。
 
@@ -65,6 +73,16 @@ pip install mss Pillow psutil PyYAML PySide6-Essentials
 再原子替换，不会读到写了一半的页面）；生成后**用浏览器打开**——不依赖 `.html` 的系统关联，
 因为那玩意儿可能被绑到编辑器上（这台机器就是 VSCode）。浏览器按 Edge → Chrome → Firefox
 的顺序找，也可以在 `config.yaml` 的 `report.browser` 里写死路径。
+
+**开机自启**（把快捷方式放启动文件夹，不改注册表）：
+
+```powershell
+.venv\Scripts\python.exe focuspet\scripts\autostart.py install     # 安装
+.venv\Scripts\python.exe focuspet\scripts\autostart.py uninstall   # 卸载
+```
+
+快捷方式指向 `.venv\Scripts\pythonw.exe`（无控制台窗口），工作目录是仓库根。
+> 某些受限环境（如沙箱）会禁止子进程写启动文件夹，装失败时换一个普通命令行窗口再跑。
 
 **周报与月报**：
 

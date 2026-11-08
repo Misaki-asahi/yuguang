@@ -106,7 +106,7 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 - **周报/月报**（`report/summary.py`）：每周日 21:00、每月最后一天 21:00 自动出，读 `block` 表汇总（清明细/截图不影响历史）；含每日柱状图、分类占比、逐日明细、与上周期对比；`--weekly` / `--monthly` 可手动生成，同周期覆盖同一文件
 - **日报**：单文件 HTML，一句话结论 + 指标卡 + 时间轴 + 可点开的证据 + 一条建议。**一天只有一个文件**（`reports/YYYY-MM-DD.html`，先写 `.tmp` 再原子替换，重复生成即覆盖）；生成后**显式调用浏览器打开**（Edge/Chrome/Firefox 依次探测，可用 `report.browser` 指定），不走 `.html` 的系统关联
 - **界面**：托盘菜单、设置面板（隐私档 / 截图间隔 / 批次 / 阈值 / 预算 / 数据与缓存）、QPainter 画的桌宠（不依赖美术资源）。设置里的「数据与缓存」可查看截图、打开工作区、调保留天数、立即清理（`maintenance.py`）
-- **运维**：心跳文件、`watchdog.ps1` 看门狗、`autostart.py` 自启、截图保留策略清理
+- **运维**：心跳文件、`watchdog.ps1` 看门狗、`autostart.py` 自启（快捷方式放启动文件夹，优先指向 `.venv`）、截图保留策略清理。2026-11-08 已给用户装好开机自启：`Startup\FocusPet.lnk` → `.venv\Scripts\pythonw.exe -m focuspet`，工作目录为仓库根
 - **演示隔离**：`--demo` 用独立的 `data/demo.db` + `data/shots-demo/` + `reports/demo.html`，绝不会碰真实数据（有 `assert` 兜底）
 - **离线可用**：除视觉模型外全链路不联网；没配模型时断网无感，配了模型断网则当批降级为规则结果（实测见第 7 节）
 
@@ -252,6 +252,7 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 跑 `--demo` 把当天真实数据清空了 | 演示默认用「今天」，且 `seed()` 会 `clear_day` + 删当天截图 | **已修**：`--demo` 改用 `demo.db`/`shots-demo`/`demo.html`，并加 `assert` 禁止打开真实库 |
 | 「今日概览」全是 0，但日志明明在采样 | 概览读的是 `block`，而 block 只在批次结束时生成；原来不分模式一律 15 分钟一批，重启后要等满一个窗口 | **已修**：没配视觉模型时批次改 1 分钟（零成本），概览里同时显示采样条数与起点 |
 | 自己的主窗口被记成「未识别」，有效比 0 | 规则表里没有这个进程（如 `DeepSeek Harness.exe`、`BongoCat.exe`） | 补 `config/rules.yaml`；已加 AI 工作台 / AI 站点 / 桌面挂件三条，现在 40 条 |
+| 程序突然起不来，报 `No module named 'yaml'` | 依赖原来装在 DSH 的共享运行时里，那个环境被重置过（2026-11-08 早上发现 yaml/mss/psutil/PySide6 全没了） | 改用项目自带 `.venv`（已建好、已 gitignore）；`autostart.py` 和 `启动余光.bat` 都优先找 `.venv\Scripts\pythonw.exe` |
 | 浏览器里很多窗口判成「未识别」，日报一片灰 | 浏览器规则只认标题关键词，`browser_generic` 兜底就是 unknown；没有模型时没人来补 | 已补 `browser_edu`（课程/错题/作业）、`browser_github[_ui]`（仓库页 + 中文界面）、`browser_own_report`（看自己的账单）等 6 条，11-06 当天未识别从 ~176 分钟降到 77 分钟。日常用 `--unknown N` 看还缺什么，`--reclassify <日期>` 让历史数据用上新规则 |
 | 声明了目标，但「深度专注」还是 0 | 专注只累计 `on_task=true` 且 ≥25 分钟的 deep_work 段；没目标时 `on_task` 是 null | 先声明目标；概览底部现在会直接提示这一点，启动 1 分钟也会弹一次提醒 |
 | `git push` 报 `Repository not found` | 大概率是 **URL 里的 GitHub 用户名写错**（这次写成了 `Misaki`，实际是 `Misaki-asahi`），不是权限问题 | 先去网页确认仓库地址，再 `git remote set-url origin <正确地址>` |
