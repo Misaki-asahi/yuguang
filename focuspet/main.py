@@ -406,6 +406,12 @@ def main(argv: list[str] | None = None) -> int:
         store.close()
         return 0
 
+    # 已经在后台跑着？那就唤起它，而不是再开一份（托盘图标被藏起来时的救命通道）
+    from . import ipc
+    if ipc.request_show():
+        print("余光已经在后台运行，已唤起「今日概览」。")
+        return 0
+
     app = App(cfg, ui=not args.headless)
 
     if args.once:

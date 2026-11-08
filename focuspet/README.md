@@ -74,6 +74,17 @@ pip install -r focuspet\requirements.txt
 因为那玩意儿可能被绑到编辑器上（这台机器就是 VSCode）。浏览器按 Edge → Chrome → Firefox
 的顺序找，也可以在 `config.yaml` 的 `report.browser` 里写死路径。
 
+**找不到托盘图标？**
+
+Windows 11 会把新图标默认塞进「隐藏图标」。两条路：
+
+```powershell
+python -m focuspet        # 再启动一次：会唤起正在运行的实例，弹出「今日概览」，不会开第二份
+```
+
+或者：设置 → 个性化 → 任务栏 → 其他系统托盘图标 → 找到「余光 / pythonw」打开开关。
+（`启动余光.bat` 双击也是同样的效果：已经在跑就唤起，没跑就启动。）
+
 **开机自启**（把快捷方式放启动文件夹，不改注册表）：
 
 ```powershell

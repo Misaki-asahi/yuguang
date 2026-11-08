@@ -180,6 +180,10 @@ class Tray(QSystemTrayIcon):
     # ---------------------------------------------------------------- 队列
     def _drain(self):
         for level, text in self.bridge.drain():
+            if level == -1:                 # 来自「第二次启动」的唤起请求
+                log.info("收到唤起请求，打开今日概览")
+                self._show_today()
+                continue
             if self.app.cfg["ui"].get("pet_enabled", True):
                 self.pet.alert(text, 5000, level)
             else:
@@ -211,9 +215,15 @@ def run_ui(app) -> int:
 
     QTimer.singleShot(60_000, _nudge_goal)
 
+    # 托盘图标可能被 Windows 藏进「隐藏图标」，因此再开一条唤起通道：
+    # 再启动一次程序（或双击 启动余光.bat）就能把今日概览叫出来。
+    from .. import ipc
+    ipc.serve(lambda: bridge.push(-1, ""))
+
     tray.message("余光", "开始记录。右键托盘图标可以声明目标。")
     app.start()
     try:
         return qapp.exec()
     finally:
+        ipc.cleanup()
         app.stop()
