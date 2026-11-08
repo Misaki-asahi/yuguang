@@ -408,11 +408,21 @@ def main(argv: list[str] | None = None) -> int:
         store.close()
         return 0
 
-    # 已经在后台跑着？那就唤起它，而不是再开一份（托盘图标被藏起来时的救命通道）
-    from . import ipc
-    if ipc.request_show():
-        print("余光已经在后台运行，已唤起「今日概览」。")
+    # 单实例：先抢锁。抢不到说明已有实例在跑，去唤起它然后自己退出，
+    # 避免连点快捷方式开出第二份（内存翻倍、样本重复记录）。
+    import atexit
+    from . import ipc, singleton
+    if not singleton.acquire():
+        woke = False
+        for _ in range(10):
+            if ipc.request_show(timeout=0.5):
+                woke = True
+                break
+            time.sleep(0.2)
+        print("余光已经在后台运行，已唤起控制面板。" if woke
+              else "余光已经在后台运行（没能唤起，可能正在启动）。")
         return 0
+    atexit.register(singleton.release)
 
     app = App(cfg, ui=not args.headless)
 
