@@ -62,3 +62,5 @@ desktop.ini
 # ============================================================
 .tmp/
 .pipcache/
+# 图标素材原图（不发布，只留本地）
+focuspet/assets/icon-source.jpg
