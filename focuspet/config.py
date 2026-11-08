@@ -79,6 +79,8 @@ DEFAULTS = {
         "pet_enabled": True,
         "pet_position": [1720, 900],
         "pet_scale": 1.0,
+        "pet_wander": True,       # 桌宠自己踱步；关掉就是钉在原地的静态挂件
+        "pet_speed": 60,          # 踱步速度（像素/秒）
         "theme": "light",
         "autostart": True,
     },
