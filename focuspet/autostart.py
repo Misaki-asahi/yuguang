@@ -6,12 +6,37 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]      # 含 focuspet/ 的目录
 LNK_NAME = "FocusPet.lnk"
+
+
+def icon_path() -> Path | None:
+    """快捷方式能用的图标路径。
+
+    Windows 的 Shell 读不了含非 ASCII 字符的 .ico（实测：同一个文件放在
+    `...\\with席\\...` 下快捷方式显示白纸，复制到纯英文路径就正常），
+    所以这里把图标复制到 %LOCALAPPDATA%\\FocusPet\\icon.ico 再用。
+    如果那个路径本身也含非 ASCII，就退回原始路径（显示不出来也不影响启动）。
+    """
+    src = PROJECT_ROOT / "focuspet" / "assets" / "icon.ico"
+    if not src.exists():
+        return None
+    base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "FocusPet"
+    dst = base / "icon.ico"
+    try:
+        if str(dst).isascii():
+            base.mkdir(parents=True, exist_ok=True)
+            if (not dst.exists()) or dst.stat().st_mtime < src.stat().st_mtime:
+                shutil.copy2(src, dst)
+            return dst
+    except OSError:
+        pass
+    return src
 
 
 def startup_dir() -> Path:
@@ -72,8 +97,8 @@ def install(with_panel: bool = False) -> Path:
             pass
     target = pythonw()
     args = "-m focuspet --panel" if with_panel else "-m focuspet"
-    icon = PROJECT_ROOT / "focuspet" / "assets" / "icon.ico"
-    icon_arg = str(icon) if icon.exists() else str(target)
+    icon = icon_path()
+    icon_arg = str(icon) if icon else str(target)
     ps = (
         f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');"
         f"$s.TargetPath='{target}';"

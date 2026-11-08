@@ -77,6 +77,12 @@ class ControlPanel(QWidget):
         self.btn_goal.clicked.connect(self._set_goal)
         root.addWidget(self.btn_goal)
 
+        # 目标按天记录，新的一天要重新声明；给一个「沿用上次」的快捷入口
+        self.btn_carry = QPushButton("")
+        self.btn_carry.clicked.connect(self._carry_goal)
+        self.btn_carry.hide()
+        root.addWidget(self.btn_carry)
+
         self.lbl_stats = QLabel("")
         self.lbl_stats.setObjectName("stats")
         self.lbl_stats.setWordWrap(True)
@@ -134,6 +140,18 @@ class ControlPanel(QWidget):
             self.lbl_state.setText("已暂停" if self.app.paused else "正在记录")
             self.lbl_goal.setText(
                 f"今日目标：{goal['text']}" if goal else "今日目标：未声明（不判定是否跑偏）")
+
+            # 没有今天的 goal 时，把上一次的目标做成一个一键按钮
+            if goal:
+                self.btn_carry.hide()
+            else:
+                last = self.app.store.last_goal_before(day)
+                if last:
+                    short = last if len(last) <= 18 else last[:18] + "…"
+                    self.btn_carry.setText(f"沿用上次：{short}")
+                    self.btn_carry.show()
+                else:
+                    self.btn_carry.hide()
             self.lbl_stats.setText(
                 f"在电脑前 {fmt_duration(m['total_minutes'])}　"
                 f"深度专注 {fmt_duration(m['focus_minutes'])}\n"
@@ -157,6 +175,12 @@ class ControlPanel(QWidget):
         text, ok = QInputDialog.getText(self, "开始专注", "今天要做什么？（一句话即可）")
         if ok and text.strip():
             self.app.store.set_goal(text.strip())
+            self.refresh()
+
+    def _carry_goal(self) -> None:
+        text = self.app.store.last_goal_before(day_of(time.time()))
+        if text:
+            self.app.store.set_goal(text)
             self.refresh()
 
     def _toggle_pause(self) -> None:

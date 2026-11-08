@@ -318,6 +318,14 @@ class Store:
             self.conn.commit()
             return cur.lastrowid
 
+    def last_goal_before(self, day: str) -> str:
+        """今天之前最近一次声明过的目标，用于「沿用上次」。"""
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT text FROM goal WHERE date < ? ORDER BY id DESC LIMIT 1",
+                (day,)).fetchone()
+        return row["text"] if row else ""
+
     def active_goal(self, ts: int | None = None) -> sqlite3.Row | None:
         day = day_of(ts or time.time())
         with self._lock:
