@@ -220,6 +220,10 @@ def run_ui(app) -> int:
     from .. import ipc
     ipc.serve(lambda: bridge.push(-1, ""))
 
+    log.info("托盘状态：系统可用=%s，图标已显示=%s，支持气泡=%s",
+             QSystemTrayIcon.isSystemTrayAvailable(), tray.isVisible(),
+             QSystemTrayIcon.supportsMessages())
+
     tray.message("余光", "开始记录。右键托盘图标可以声明目标。")
     app.start()
     try:
