@@ -180,6 +180,10 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 > 第 4 条的实现口径（别好心改回去）：判定链第 3 道门只看 `category` 是否属于
 > 消耗类（`CONSUMING`），学习/工作一律放行；`on_task` 在规则模式下是**按类别推断**
 > 的，不是语义比对——只有配了视觉模型，模型才会真的读目标再判 `on_task`。
+>
+> 目标按**时刻**生效：`store.active_goal(ts)` 会比对 `started_ts`，声明之前的那几段
+> 不补判（`on_task` 为 NULL）。所以 `--reclassify` 历史日期时，下午才写的目标
+> 不会套到上午去——2026-11-09 修的就是这个。
 
 ---
 
