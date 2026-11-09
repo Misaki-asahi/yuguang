@@ -108,6 +108,7 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 - **日报**：单文件 HTML，一句话结论 + 指标卡 + 时间轴 + 可点开的证据 + 一条建议。**一天只有一个文件**（`reports/YYYY-MM-DD.html`，先写 `.tmp` 再原子替换，重复生成即覆盖）；生成后**显式调用浏览器打开**（Edge/Chrome/Firefox 依次探测，可用 `report.browser` 指定），不走 `.html` 的系统关联
 - **界面**：托盘菜单、设置面板（隐私档 / 截图间隔 / 批次 / 阈值 / 预算 / 数据与缓存）、QPainter 画的桌宠（不依赖美术资源）。设置里的「数据与缓存」可查看截图、打开工作区、调保留天数、立即清理（`maintenance.py`）
 - **桌宠素材**（v0.3.1，协作者 `yv-bai` 的 PR #2）：手画小熊 → 静态立绘 → 逐帧动作包。`assets/pet/juyuan-pack/` 是 10 个状态、78–80 帧、220×211 画布的 webp 图集（约 6.8 MB，占了仓库大半体积）；`anim/` 负责 manifest 解析、图集切帧、按状态 fps 播放（`AssetStore` 只缓存最近 3 个状态，全预载要几百 MB）；`ui/pet.py` 只做窗口层。素材缺失时逐级回退，clone 下来没素材也能跑。会自己踱步、碰到屏幕边缘掉头、眼睛跟鼠标，`ui.pet_wander` / `ui.pet_speed` 控制
+- **没声明目标时不再说谎**（2026-11-09）：日报和面板都改说「专注未统计（深度工作 X 小时 Y 分）」并附 `[沿用上次：…]`，不再出现「深度工作 4 小时 / 专注 0 分钟」；有目标但没攒出 25 分钟连续段时，写「有 X 的深度工作，但没有一段连续 25 分钟以上」。面板把「沿用上次」提成主按钮、`开始专注…` 降为次要；**启动时当天没目标就直接弹控制面板**并把焦点放到目标声明上（以前只发一条托盘气泡，图标被 Win11 塞进隐藏区就等于没提醒）。判断依据是 `aggregate.metrics` 新增的 `goal_tracked` / `deep_minutes`
 - **运维**：心跳文件、`watchdog.ps1` 看门狗、`autostart.py` 自启（快捷方式放启动文件夹）、截图保留策略清理。2026-11-09 起自启优先指向 `%LOCALAPPDATA%\FocusPet\venv\Scripts\pythonw.exe`（纯英文路径），没有才回退项目 `.venv`；已装好 `Startup\FocusPet.lnk` → 该 pythonw `-m focuspet`，工作目录为仓库根（已实测 `autostart.pythonw()` 解析到 ASCII 路径且存在）
 - **演示隔离**：`--demo` 用独立的 `data/demo.db` + `data/shots-demo/` + `reports/demo.html`，绝不会碰真实数据（有 `assert` 兜底）
 - **离线可用**：除视觉模型外全链路不联网；没配模型时断网无感，配了模型断网则当批降级为规则结果（实测见第 7 节）
@@ -268,6 +269,7 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 会话里 `git fetch/push` 报 `schannel: SEC_E_NO_CREDENTIALS` | 这个 shell 拿不到 GitHub 凭据，不是仓库地址写错（`Repository not found` 才是地址错） | 推送在用户自己的终端做，或切完全权限后重试；拉取同理，别误判成远端有问题 |
 | 程序已经在跑时 `--once` / `--duration` 不采集，只弹面板 | `main()` 里单实例锁在 `--once` 之前就抢了，抢不到就 `ipc.request_show()` 然后退出 | 想验采集：先退出常驻实例，或直接看 `data/logs/focuspet.log` 里「完成 N 个批次」有没有在走 |
 | 报错里的路径显示成 `withϯ` | GBK 控制台的显示问题，文件本身正常 | 用 `read` / `read_image` 验证，别当成路径损坏 |
+| 双击 `启动余光.bat` 毫无反应，程序不起来 | `.bat` 被存成了 UTF-8（含中文注释、LF 换行），cmd 按 GBK 解析时整行错位，`start` 直接失败；pythonw 又没有控制台，看不到任何报错 | `.bat` 必须**纯 ASCII + CRLF**，注释也只写英文；工作目录用 `pushd` 传，别写 `start /d "路径\"`（结尾反斜杠会吃掉引号）。两个 bat 已按此重写 |
 
 ---
 
