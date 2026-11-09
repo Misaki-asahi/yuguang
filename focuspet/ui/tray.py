@@ -105,14 +105,19 @@ class Tray(QSystemTrayIcon):
         if reason == QSystemTrayIcon.Trigger:
             self.open_panel()
 
-    def open_panel(self) -> None:
-        """控制面板：托盘菜单、第二次启动、--panel 都走这里。"""
+    def open_panel(self, focus_goal: bool = False) -> None:
+        """控制面板：托盘菜单、第二次启动、--panel 都走这里。
+
+        focus_goal=True 时把光标落在「声明目标」上——启动时没目标就是走这条路。
+        """
         if self.panel is None:
             self.panel = ControlPanel(self.app)
         self.panel.show()
         self.panel.raise_()
         self.panel.activateWindow()
         self.panel.refresh()
+        if focus_goal:
+            self.panel.focus_goal()
 
     def message(self, title: str, text: str) -> None:
         self.showMessage(title, text, QSystemTrayIcon.Information, 3000)
@@ -215,12 +220,31 @@ def run_ui(app, show_panel: bool = False) -> int:
     if show_panel:                       # 快捷方式带 --panel：启动后直接把面板摆出来
         QTimer.singleShot(300, tray.open_panel)
 
-    def _nudge_goal():
-        """没声明目标就没有「摸鱼判定」，开机一分钟提醒一次。"""
+    def _ask_goal_on_start():
+        """启动时没声明目标：直接弹面板，光标落在「声明目标」上。
+
+        以前这里只发一条托盘气泡，而托盘图标在 Win11 默认被塞进「隐藏图标」，
+        等于没提醒——干脆把面板摆出来，用户关掉就算了。
+        """
         try:
-            if not app.store.active_goal():
-                tray.message("余光", "今天还没声明目标。右键托盘 →「开始专注…」，"
-                                    "否则只统计时长，不判定是否跑偏。")
+            if app.store.active_goal():
+                return
+            log.info("今天还没声明目标，直接打开控制面板")
+            tray.open_panel(focus_goal=True)
+        except Exception:
+            log.debug("启动时打开面板失败", exc_info=True)
+
+    QTimer.singleShot(1200, _ask_goal_on_start)
+
+    def _nudge_goal():
+        """面板被关掉、目标仍然没声明时，再补一条气泡（只补这一次）。"""
+        try:
+            if app.store.active_goal():
+                return
+            if tray.panel is not None and tray.panel.isVisible():
+                return
+            tray.message("余光", "今天还没声明目标。右键托盘 →「开始专注…」，"
+                                "否则只统计时长，不判定是否跑偏。")
         except Exception:
             pass
 

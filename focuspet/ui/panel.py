@@ -138,23 +138,34 @@ class ControlPanel(QWidget):
             goal = self.app.store.active_goal()
 
             self.lbl_state.setText("已暂停" if self.app.paused else "正在记录")
-            self.lbl_goal.setText(
-                f"今日目标：{goal['text']}" if goal else "今日目标：未声明（不判定是否跑偏）")
+            if goal:
+                self.lbl_goal.setText(f"今日目标：{goal['text']}")
+            else:
+                self.lbl_goal.setText("今日目标：未声明 —— 今天只统计时长，不判断是否跑偏")
 
-            # 没有今天的 goal 时，把上一次的目标做成一个一键按钮
+            # 没有今天的 goal 时，把「沿用上次」提成主按钮：一键就能开工。
+            # 「开始专注…」同时存在，但退成次要入口（重新写一句）。
             if goal:
                 self.btn_carry.hide()
+                self._set_primary(self.btn_goal, True)
             else:
                 last = self.app.store.last_goal_before(day)
                 if last:
                     short = last if len(last) <= 18 else last[:18] + "…"
                     self.btn_carry.setText(f"沿用上次：{short}")
                     self.btn_carry.show()
+                    self._set_primary(self.btn_carry, True)
+                    self._set_primary(self.btn_goal, False)
                 else:
                     self.btn_carry.hide()
+                    self._set_primary(self.btn_goal, True)
+
+            # 没声明目标时「深度专注 0 分钟」是误导：那是没测量，不是没干活
+            focus_txt = (fmt_duration(m["focus_minutes"]) if m.get("goal_tracked")
+                         else f"未统计（深度工作 {fmt_duration(m['deep_minutes'])}）")
             self.lbl_stats.setText(
                 f"在电脑前 {fmt_duration(m['total_minutes'])}　"
-                f"深度专注 {fmt_duration(m['focus_minutes'])}\n"
+                f"深度专注 {focus_txt}\n"
                 f"消耗 {fmt_duration(m['consumption_minutes'])}　"
                 f"切换 {m['switches']} 次　有效比 {m['effective_ratio'] * 100:.0f}%")
             self.btn_pause.setText("继续采集" if self.app.paused else "暂停采集")
@@ -162,6 +173,22 @@ class ControlPanel(QWidget):
                 self.chk_autostart.setChecked(autostart.is_installed())
         except Exception:
             log.debug("刷新面板失败", exc_info=True)
+
+    def _set_primary(self, btn, on: bool) -> None:
+        """切换按钮的主/次样式（QSS 按 objectName 命中，改完必须重新 polish）。"""
+        name = "primary" if on else ""
+        if btn.objectName() == name:
+            return
+        btn.setObjectName(name)
+        btn.style().unpolish(btn)
+        btn.style().polish(btn)
+
+    def focus_goal(self) -> None:
+        """把光标放到目标声明上：有「沿用上次」就落它，否则落「开始专注」。"""
+        target = self.btn_carry if self.btn_carry.isVisible() else self.btn_goal
+        target.setFocus(Qt.OtherFocusReason)
+        self.raise_()
+        self.activateWindow()
 
     def _report_hm(self) -> tuple[int, int]:
         try:
