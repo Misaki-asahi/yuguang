@@ -252,6 +252,7 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 跑 `--demo` 把当天真实数据清空了 | 演示默认用「今天」，且 `seed()` 会 `clear_day` + 删当天截图 | **已修**：`--demo` 改用 `demo.db`/`shots-demo`/`demo.html`，并加 `assert` 禁止打开真实库 |
 | 「今日概览」全是 0，但日志明明在采样 | 概览读的是 `block`，而 block 只在批次结束时生成；原来不分模式一律 15 分钟一批，重启后要等满一个窗口 | **已修**：没配视觉模型时批次改 1 分钟（零成本），概览里同时显示采样条数与起点 |
 | 自己的主窗口被记成「未识别」，有效比 0 | 规则表里没有这个进程（如 `DeepSeek Harness.exe`、`BongoCat.exe`） | 补 `config/rules.yaml`；已加 AI 工作台 / AI 站点 / 桌面挂件三条，现在 40 条 |
+| 日报生成后浏览器不弹、托盘图标也没有 | **解释器路径含中文**：项目在 `...\with席\`，用项目内 `.venv` 启动的 Python 调 Edge 会以退出码 21 秒退，托盘图标也注册不上。换成 `C:\Users\...\AppData\Local\FocusPet\venv` 后全好 | venv 装在 `%LOCALAPPDATA%\FocusPet\venv`（纯英文）；`autostart.pythonw()` 与 `启动余光.bat` 都优先找它。项目目录可以是中文，解释器不行 |
 | 程序突然起不来，报 `No module named 'yaml'` | 依赖原来装在 DSH 的共享运行时里，那个环境被重置过（2026-11-08 早上发现 yaml/mss/psutil/PySide6 全没了） | 改用项目自带 `.venv`（已建好、已 gitignore）；`autostart.py` 和 `启动余光.bat` 都优先找 `.venv\Scripts\pythonw.exe` |
 | 开机后托盘里找不到图标，以为没启动 | Windows 11 默认把新图标塞进「隐藏图标」；这台机器的注册表里 `pythonw.exe` 那条 **InitialTooltip 是空的**，所以在列表里可能只显示 pythonw | 加 `ipc.py`：再启动一次会连上已有实例并弹出「今日概览」（实测日志 `收到唤起请求`）。也可以在 设置→个性化→任务栏→其他系统托盘图标 里把「余光/pythonw」设为常显 |
 | 浏览器里很多窗口判成「未识别」，日报一片灰 | 浏览器规则只认标题关键词，`browser_generic` 兜底就是 unknown；没有模型时没人来补 | 已补 `browser_edu`（课程/错题/作业）、`browser_github[_ui]`（仓库页 + 中文界面）、`browser_own_report`（看自己的账单）等 6 条，11-06 当天未识别从 ~176 分钟降到 77 分钟。日常用 `--unknown N` 看还缺什么，`--reclassify <日期>` 让历史数据用上新规则 |
