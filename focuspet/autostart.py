@@ -47,7 +47,16 @@ def startup_dir() -> Path:
 
 
 def pythonw() -> Path:
-    """优先用项目自带的 .venv：共享运行时会被宿主程序重置，依赖一夜之间消失过一次。"""
+    """优先用 %LOCALAPPDATA%\\FocusPet\\venv —— 必须放在纯 ASCII 路径。
+
+    本机专用改动（未提交）：项目目录叫 `with席`，用它里面的 venv 启动时，
+    Python 再拉起 Edge 会以退出码 21 秒退，托盘图标也注册不上。
+    解释器挪到英文路径后一切正常；程序本身放中文目录没问题。
+    """
+    ascii_venv = (Path(os.environ.get("LOCALAPPDATA") or Path.home())
+                  / "FocusPet" / "venv" / "Scripts" / "pythonw.exe")
+    if ascii_venv.exists():
+        return ascii_venv
     venv = PROJECT_ROOT / ".venv" / "Scripts" / "pythonw.exe"
     if venv.exists():
         return venv
