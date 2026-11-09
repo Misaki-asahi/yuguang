@@ -178,6 +178,7 @@ def collect(store, day: str) -> dict:
         "recovery": recovery, "alerts": alert_count,
         "longest_focus": longest / 60.0,
         "analyses": store.analyses(day),
+        "last_goal": store.last_goal_before(day),
     }
 
 
@@ -186,8 +187,19 @@ def _cards(d: dict) -> str:
     ratio = f"{m['effective_ratio'] * 100:.0f}%"
     per_hour = (m["switches"] / (m["awake_minutes"] / 60.0)) if m["awake_minutes"] >= 30 else 0
     rec = "—" if d["recovery"] is None else f"{d['recovery'] * 100:.0f}%"
+    if m.get("goal_tracked", True):
+        focus_card = (aggregate.fmt_duration(m["focus_minutes"]), "深度专注",
+                      "≥ 25 分钟的连续段")
+        if m["focus_minutes"] <= 0 and m["deep_minutes"] > 0:
+            focus_card = (aggregate.fmt_duration(m["focus_minutes"]), "深度专注",
+                          f"没攒出 25 分钟连续段 · 深度工作 "
+                          f"{aggregate.fmt_duration(m['deep_minutes'])}")
+    else:
+        # 没声明目标时不要写「0 分钟」——那不是成绩差，是没测量
+        focus_card = ("未统计", "深度专注",
+                      f"今天没声明目标 · 深度工作 {aggregate.fmt_duration(m['deep_minutes'])}")
     items = [
-        (aggregate.fmt_duration(m["focus_minutes"]), "深度专注", "≥ 25 分钟的连续段"),
+        focus_card,
         (aggregate.fmt_duration(m["consumption_minutes"]), "消耗时长", "娱乐 + 无目的浏览"),
         (ratio, "有效比", "生产性 ÷ 在电脑前"),
         (f"{m['switches']} 次", "切换", f"约每小时 {per_hour:.1f} 次"),
@@ -284,9 +296,14 @@ def render_day(cfg: dict, store, day: str | None = None,
             summary = "今天还没有数据——程序可能没在运行。"
             sub = "先让余光跑一天，晚上再来看。"
     else:
-        summary = aggregate.summary_line(m, d["prev_focus"])
-        sub = (f"识别出 {m['block_count']} 段 · 有效比 {m['effective_ratio'] * 100:.0f}% · "
-               f"最长一段专注 {aggregate.fmt_duration(d['longest_focus'])}")
+        summary = aggregate.summary_line(m, d["prev_focus"], d["last_goal"])
+        if m.get("goal_tracked", True):
+            sub = (f"识别出 {m['block_count']} 段 · 有效比 {m['effective_ratio'] * 100:.0f}% · "
+                   f"最长一段专注 {aggregate.fmt_duration(d['longest_focus'])}")
+        else:
+            sub = (f"识别出 {m['block_count']} 段 · 有效比 {m['effective_ratio'] * 100:.0f}% · "
+                   f"深度工作 {aggregate.fmt_duration(m['deep_minutes'])}"
+                   f"（没声明目标，专注不参与统计）")
 
     date_cn = time.strftime("%Y 年 %m 月 %d 日", time.strptime(day, "%Y-%m-%d"))
     tpl = Template(TEMPLATE.read_text(encoding="utf-8"))
@@ -294,7 +311,8 @@ def render_day(cfg: dict, store, day: str | None = None,
         title=f"余光 · {day} 时间账单",
         date_cn=date_cn,
         tracked=aggregate.fmt_duration(m["total_minutes"]),
-        focus=aggregate.fmt_duration(m["focus_minutes"]),
+        focus=(aggregate.fmt_duration(m["focus_minutes"])
+               if m.get("goal_tracked", True) else "未统计"),
         switches=f"{m['switches']} 次",
         summary=_esc(summary),
         sub_line=_esc(sub),

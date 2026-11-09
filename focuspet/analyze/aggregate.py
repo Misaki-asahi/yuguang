@@ -151,11 +151,17 @@ def metrics(blocks: list[dict], idle_minutes: float = 0.0) -> dict:
     awake = total
     ratio = (productive / awake) if awake > 0 else 0.0
 
+    # 当天到底有没有「参照物」：on_task 全为空说明一次判定都没发生（没声明过目标）。
+    # 这时候 focus=0 不是「没专注」，而是「没法统计」——展示层必须区分这两件事。
+    goal_tracked = any(b.get("on_task") is not None for b in real)
+
     return {
         "total_minutes": round(total, 1),
         "idle_minutes": round(idle_minutes, 1),
         "awake_minutes": round(awake, 1),
         "focus_minutes": round(focus, 1),
+        "deep_minutes": round(by_cat.get("deep_work", 0.0), 1),
+        "goal_tracked": goal_tracked,
         "productive_minutes": round(productive, 1),
         "consumption_minutes": round(consumption, 1),
         "switches": switches,
@@ -177,9 +183,24 @@ def fmt_duration(minutes: float) -> str:
     return f"{mm} 分钟"
 
 
-def summary_line(m: dict, prev_focus: float | None = None) -> str:
-    """一句话结论（12.4）：陈述事实，不评价人格，不做比较级。"""
+def summary_line(m: dict, prev_focus: float | None = None, last_goal: str = "") -> str:
+    """一句话结论（12.4）：陈述事实，不评价人格，不做比较级。
+
+    没声明目标时不说「专注 0 分钟」——那是误导，会让人以为当天没干活。
+    改成「专注未统计」，并把深度工作的时长如实报出来。
+    """
+    if not m.get("goal_tracked", True):
+        line = (f"今天未声明目标，专注未统计"
+                f"（深度工作 {fmt_duration(m.get('deep_minutes', 0))}）")
+        if last_goal:
+            line += f"　[沿用上次：{last_goal}]"
+        return line
+
     focus = m["focus_minutes"]
+    if focus <= 0 and m.get("deep_minutes", 0) > 0:
+        # 有深度工作、却一段都没到 25 分钟：说清楚是「被打碎了」，不是「没干活」
+        return (f"今天专注 0 分钟——有 {fmt_duration(m['deep_minutes'])}的深度工作，"
+                f"但没有一段连续 25 分钟以上。")
     if focus >= 180:
         tail = ""
         if prev_focus is not None:
