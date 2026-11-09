@@ -30,7 +30,7 @@ PENDING_JSONL = DATA / "pending.jsonl"
 DEFAULTS = {
     "app": {
         "name": "余光",
-        "version": "0.3.1",
+        "version": "0.4.0",
     },
     "capture": {
         "window_poll_sec": 5,
@@ -79,6 +79,8 @@ DEFAULTS = {
         "pet_enabled": True,
         "pet_position": [1720, 900],
         "pet_scale": 1.0,
+        "pet_wander": False,      # 默认钉在原地；想要它自己溜达就改成 true
+        "pet_speed": 60,          # 踱步速度（像素/秒）
         "theme": "light",
         "autostart": True,
     },
