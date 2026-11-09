@@ -327,11 +327,19 @@ class Store:
         return row["text"] if row else ""
 
     def active_goal(self, ts: int | None = None) -> sqlite3.Row | None:
-        day = day_of(ts or time.time())
+        """ts 这一刻生效的目标；不给 ts 就是「现在」。
+
+        必须比较 started_ts：目标声明之前的那几段，不能事后被算成「在任务上」。
+        —— `--reclassify` 一个历史日期时，下午才写的目标不该套到上午去。
+        （status 只表示「被后一条目标取代」，所以这里不按 status 过滤，
+         而是取 started_ts 最新的那一条。）
+        """
+        when = int(ts or time.time())
+        day = day_of(when)
         with self._lock:
             return self.conn.execute(
-                "SELECT * FROM goal WHERE date=? AND status='active'"
-                " ORDER BY id DESC LIMIT 1", (day,)).fetchone()
+                "SELECT * FROM goal WHERE date=? AND started_ts <= ?"
+                " ORDER BY started_ts DESC, id DESC LIMIT 1", (day, when)).fetchone()
 
     # ------------------------------------------------------------ intervention
     def add_intervention(self, level: int, rule_id: str, reason: str,

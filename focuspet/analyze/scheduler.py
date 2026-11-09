@@ -183,7 +183,8 @@ class Scheduler:
             step = max(1, len(shots) // MAX_FRAMES)
             frames = [shots[i]["shot"] for i in range(0, len(shots), step)][:MAX_FRAMES]
 
-        goal = self.store.active_goal(ws)
+        # 用窗口末尾取目标：本批中途才声明目标时，也要让模型看到它
+        goal = self.store.active_goal(we)
         prev = self._prev_summary(ws)
         return {
             "start_ts": ws, "end_ts": we, "timeline": timeline,
