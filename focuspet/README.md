@@ -53,23 +53,19 @@ python -m focuspet --unknown 2           # 列出最近 2 天被判为「未识�
 python -m focuspet --reclassify          # 用当前规则重跑今天（也可指定日期）
 ```
 
-依赖（装在**纯英文路径**下的虚拟环境里，别装进系统 Python）：
+依赖（**建议装在项目自己的虚拟环境里**，别装进系统 Python）：
 
 ```powershell
-python -m venv "$env:LOCALAPPDATA\FocusPet\venv"
-& "$env:LOCALAPPDATA\FocusPet\venv\Scripts\python.exe" -m pip install -r focuspet\requirements.txt
+cd <仓库根目录>
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r focuspet\requirements.txt
 ```
 
-> **为什么必须放英文路径**：如果仓库放在 `...\with席\` 这种含中文的目录里，用项目内的
-> `.venv\Scripts\python.exe` 启动时，Python 再调浏览器会直接失败（Edge 退出码 21，
-> 日报永远弹不出来），托盘图标也注册不上。把解释器挪到
-> `C:\Users\<你>\AppData\Local\FocusPet\venv` 后全部正常。
->
-> 程序本身可以放在中文目录里，**只有解释器不行**。`autostart.py` 和 `启动余光.bat`
-> 都会优先找这个英文路径的 venv。
->
-> 另一个理由：依赖装在共享 Python 里，那个环境被升级或重置过，程序会突然报
-> `No module named 'yaml'` 起不来。
+不激活也能用，直接调用 venv 里的解释器即可：`.venv\Scripts\python.exe -m focuspet`。
+
+> 为什么要 venv：依赖装在共享 Python 里，那个环境一旦被升级或重置，程序会突然报
+> `No module named 'yaml'` 起不来。这套配置就被这么坑过一次，所以自启脚本也优先找 `.venv`。
 
 `PySide6` 只用于托盘和桌宠；缺了会自动退回无界面模式。
 

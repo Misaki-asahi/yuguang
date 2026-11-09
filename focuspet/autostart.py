@@ -47,20 +47,10 @@ def startup_dir() -> Path:
 
 
 def pythonw() -> Path:
-    """优先用 %LOCALAPPDATA%\\FocusPet\\venv —— 它必须是纯 ASCII 路径。
-
-    踩过两次同一个坑：
-      * 项目目录叫 `with席`，venv 放在项目里 → python 的子进程（Edge）启动即以
-        退出码 21 崩溃，日报永远弹不出来；
-      * 换成 `C:\\Users\\...\\AppData\\Local\\FocusPet\\venv` 后一切正常。
-    所以哪怕项目路径含中文，解释器也要待在英文路径下。
-    """
-    ascii_venv = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "FocusPet" / "venv" / "Scripts" / "pythonw.exe"
-    if ascii_venv.exists():
-        return ascii_venv
-    local_venv = PROJECT_ROOT / ".venv" / "Scripts" / "pythonw.exe"
-    if local_venv.exists():
-        return local_venv
+    """优先用项目自带的 .venv：共享运行时会被宿主程序重置，依赖一夜之间消失过一次。"""
+    venv = PROJECT_ROOT / ".venv" / "Scripts" / "pythonw.exe"
+    if venv.exists():
+        return venv
     exe = Path(sys.executable)
     cand = exe.with_name("pythonw.exe")
     return cand if cand.exists() else exe
