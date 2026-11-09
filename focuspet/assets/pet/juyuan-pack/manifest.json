@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "character": {
+    "id": "juyuan",
+    "name": "菊鸳"
+  },
+  "canvas": {
+    "w": 220,
+    "h": 211,
+    "fps": 8,
+    "anchor": [
+      0.5,
+      1.0
+    ]
+  },
+  "source": {
+    "pack": "claude",
+    "repo": "https://github.com/hunmer/aboutme-pets",
+    "upstream": "https://github.com/PC2005-cloud/dsh-pet",
+    "license": "见同目录 ASSETS-LICENSE.md（素材非商用 + 署名；不适用本仓库代码的 MIT）",
+    "converted": "2026-11-09"
+  },
+  "states": {
+    "idle_a": {
+      "name": "待机呼吸休闲",
+      "atlas": "anim/idle_a.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 80,
+      "fps": 8,
+      "loop": true,
+      "mirror": true
+    },
+    "idle_doze": {
+      "name": "原地小憩沉眠",
+      "atlas": "anim/idle_doze.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 80,
+      "fps": 8,
+      "loop": true,
+      "mirror": true
+    },
+    "idle_look": {
+      "name": "东张西望",
+      "atlas": "anim/idle_look.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 80,
+      "fps": 8,
+      "loop": true,
+      "mirror": true
+    },
+    "walk": {
+      "name": "原地漂浮踏步",
+      "atlas": "anim/walk.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 80,
+      "fps": 8,
+      "loop": true,
+      "mirror": true
+    },
+    "drag": {
+      "name": "被鼠标拖拽悬空反馈",
+      "atlas": "anim/drag.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 80,
+      "fps": 8,
+      "loop": true,
+      "mirror": true
+    },
+    "click_happy": {
+      "name": "点击回应-开心跃动",
+      "atlas": "anim/click_happy.webp",
+      "columns": 8,
+      "rows": 9,
+      "frames": 68,
+      "fps": 12,
+      "loop": false,
+      "mirror": true
+    },
+    "click_shy": {
+      "name": "点击回应-害羞惊讶",
+      "atlas": "anim/click_shy.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 80,
+      "fps": 12,
+      "loop": false,
+      "mirror": true
+    },
+    "alert_tired": {
+      "name": "工作状态-垂头叹气冒汗",
+      "atlas": "anim/alert_tired.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 78,
+      "fps": 12,
+      "loop": false,
+      "mirror": true
+    },
+    "praise": {
+      "name": "工作状态-雀跃庆祝",
+      "atlas": "anim/praise.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 76,
+      "fps": 12,
+      "loop": false,
+      "mirror": true
+    },
+    "yawn": {
+      "name": "哈欠连天",
+      "atlas": "anim/yawn.webp",
+      "columns": 8,
+      "rows": 10,
+      "frames": 77,
+      "fps": 12,
+      "loop": false,
+      "mirror": true
+    }
+  },
+  "events": {
+    "idle": [
+      "idle_a",
+      "idle_look"
+    ],
+    "click": [
+      "click_happy",
+      "click_shy"
+    ],
+    "drag": [
+      "drag"
+    ],
+    "walk": [
+      "walk"
+    ],
+    "alert": [
+      "alert_tired"
+    ],
+    "praise": [
+      "praise"
+    ],
+    "sleep": [
+      "idle_doze"
+    ],
+    "yawn": [
+      "yawn"
+    ]
+  }
+}

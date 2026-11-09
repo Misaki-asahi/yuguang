@@ -234,3 +234,19 @@ analyze:
 2. 只截主屏。多屏用户的副屏活动只有元数据，够用。
 3. 判定 ≤ 15 分钟的延迟——提醒依赖批次分析，M2 之前不谈提醒是有原因的。
 4. 桌宠是 QPainter 画的简笔角色，没有 Live2D；真的用起来了再说。
+
+---
+
+## 素材来源与许可
+
+> 本仓库的**代码**以 MIT 许可发布（见 `LICENSE`）；但**桌宠动作素材**来自第三方，
+> 有独立的使用限制，**不适用 MIT 许可**。
+
+- **桌宠动画素材**：来自 [hunmer/aboutme-pets](https://github.com/hunmer/aboutme-pets)
+  的 `pets/claude` 包，上游归属 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)。
+  已获素材作者许可用于本项目（非商用二创、公开仓库），要求：
+  **禁止商用；在公开渠道使用/分发须署名上游仓库**。
+  本项目对其做了格式转换（帧率、画布尺寸、重新打包），转换后的文件见
+  `focuspet/assets/pet/juyuan-pack/`，具体许可见该目录下的 `ASSETS-LICENSE.md`。
+- **角色静态立绘**：`focuspet/assets/pet/juyuan/pose.png` 为本项目原创美术，随仓库以 MIT 发布。
+
