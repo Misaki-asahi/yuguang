@@ -30,7 +30,7 @@ PENDING_JSONL = DATA / "pending.jsonl"
 DEFAULTS = {
     "app": {
         "name": "余光",
-        "version": "0.4.0",
+        "version": "0.3.1",           # 跟 focuspet/__init__.py 的 __version__ 保持一致
     },
     "capture": {
         "window_poll_sec": 5,
