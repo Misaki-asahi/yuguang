@@ -1,18 +1,19 @@
 # HANDOFF · 「余光」AI 屏幕行为监测与桌宠提醒工具
 
 > **项目级交接文档。** 上下文快满、或换一个新会话来继续时，先读这一份，再按需读设计文档。
-> 版本 v1.2 ｜ 最后更新 2026-11-06 15:20 ｜ 维护方式见文末第 10 节。
+> 版本 v1.2 ｜ 最后更新 2026-11-09 21:25 ｜ 维护方式见文末第 10 节。
 
 ---
 
 ## 0. 一句话现状
 
-**项目已开源并在用**：代码 v0.3.0 正在用户机器上真实运行（今早 10:14 起持续记录），
-设计文档 v1.1 已交付，仓库推到了 GitHub 公开仓库。
+**项目已开源并在用**：代码 v0.3.1 正在用户机器上真实运行（每天持续记录），
+设计文档 v1.1 已交付，仓库推到了 GitHub 公开仓库，协作者的桌宠动作包已并入 main。
 
 ```text
 仓库  https://github.com/Misaki-asahi/yuguang    （main 分支，公开）
 本地  E:\deepseek-data\workspaces\DeepSeekProjects\with席（git 已初始化，工作区干净）
+同步  2026-11-09 21:01 从 3651994 快进到 8e0e0e5（PR #2 合并），此后 0 ahead / 0 behind
 ```
 
 代码在 `focuspet/`，四条命令覆盖日常：
@@ -93,7 +94,7 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 抽查渲染页 7、8、18、22、24、32，图 1 与图 4 的新文案、10.5 性能表、11.5 成本表、
 15.4 配置块均排版正常，无溢出。
 
-### 3.3 代码实现（v0.3.0，2026-11-06）
+### 3.3 代码实现（v0.3.1，2026-11-09）
 
 按设计文档 15.3 的目录结构落地。Python 3.12，依赖 `mss / Pillow / psutil / PyYAML / PySide6-Essentials`。
 
@@ -106,7 +107,8 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 - **周报/月报**（`report/summary.py`）：每周日 21:00、每月最后一天 21:00 自动出，读 `block` 表汇总（清明细/截图不影响历史）；含每日柱状图、分类占比、逐日明细、与上周期对比；`--weekly` / `--monthly` 可手动生成，同周期覆盖同一文件
 - **日报**：单文件 HTML，一句话结论 + 指标卡 + 时间轴 + 可点开的证据 + 一条建议。**一天只有一个文件**（`reports/YYYY-MM-DD.html`，先写 `.tmp` 再原子替换，重复生成即覆盖）；生成后**显式调用浏览器打开**（Edge/Chrome/Firefox 依次探测，可用 `report.browser` 指定），不走 `.html` 的系统关联
 - **界面**：托盘菜单、设置面板（隐私档 / 截图间隔 / 批次 / 阈值 / 预算 / 数据与缓存）、QPainter 画的桌宠（不依赖美术资源）。设置里的「数据与缓存」可查看截图、打开工作区、调保留天数、立即清理（`maintenance.py`）
-- **运维**：心跳文件、`watchdog.ps1` 看门狗、`autostart.py` 自启（快捷方式放启动文件夹，优先指向 `.venv`）、截图保留策略清理。2026-11-08 已给用户装好开机自启：`Startup\FocusPet.lnk` → `.venv\Scripts\pythonw.exe -m focuspet`，工作目录为仓库根
+- **桌宠素材**（v0.3.1，协作者 `yv-bai` 的 PR #2）：手画小熊 → 静态立绘 → 逐帧动作包。`assets/pet/juyuan-pack/` 是 10 个状态、78–80 帧、220×211 画布的 webp 图集（约 6.8 MB，占了仓库大半体积）；`anim/` 负责 manifest 解析、图集切帧、按状态 fps 播放（`AssetStore` 只缓存最近 3 个状态，全预载要几百 MB）；`ui/pet.py` 只做窗口层。素材缺失时逐级回退，clone 下来没素材也能跑。会自己踱步、碰到屏幕边缘掉头、眼睛跟鼠标，`ui.pet_wander` / `ui.pet_speed` 控制
+- **运维**：心跳文件、`watchdog.ps1` 看门狗、`autostart.py` 自启（快捷方式放启动文件夹）、截图保留策略清理。2026-11-09 起自启优先指向 `%LOCALAPPDATA%\FocusPet\venv\Scripts\pythonw.exe`（纯英文路径），没有才回退项目 `.venv`；已装好 `Startup\FocusPet.lnk` → 该 pythonw `-m focuspet`，工作目录为仓库根（已实测 `autostart.pythonw()` 解析到 ASCII 路径且存在）
 - **演示隔离**：`--demo` 用独立的 `data/demo.db` + `data/shots-demo/` + `reports/demo.html`，绝不会碰真实数据（有 `assert` 兜底）
 - **离线可用**：除视觉模型外全链路不联网；没配模型时断网无感，配了模型断网则当批降级为规则结果（实测见第 7 节）
 
@@ -209,6 +211,10 @@ $py = "E:\deepseek-data\dsh-runtimes\dsh-primary-runtime\dependencies\python\pyt
 & $py build_doc.py
 ```
 
+> 两个解释器别混：**生成文档**用上面这个 DSH 运行时（它才有 python-docx）；
+> **跑 focuspet** 一律用 `C:\Users\22760\AppData\Local\FocusPet\venv\Scripts\python.exe`
+> ——必须在纯英文路径，项目内 `.venv` 虽然能起，但 Python 再拉 Edge 会退出码 21 秒退、托盘注册不上。
+
 ### 6.3 改了插图
 
 ```powershell
@@ -252,12 +258,16 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 跑 `--demo` 把当天真实数据清空了 | 演示默认用「今天」，且 `seed()` 会 `clear_day` + 删当天截图 | **已修**：`--demo` 改用 `demo.db`/`shots-demo`/`demo.html`，并加 `assert` 禁止打开真实库 |
 | 「今日概览」全是 0，但日志明明在采样 | 概览读的是 `block`，而 block 只在批次结束时生成；原来不分模式一律 15 分钟一批，重启后要等满一个窗口 | **已修**：没配视觉模型时批次改 1 分钟（零成本），概览里同时显示采样条数与起点 |
 | 自己的主窗口被记成「未识别」，有效比 0 | 规则表里没有这个进程（如 `DeepSeek Harness.exe`、`BongoCat.exe`） | 补 `config/rules.yaml`；已加 AI 工作台 / AI 站点 / 桌面挂件三条，现在 40 条 |
-| 程序突然起不来，报 `No module named 'yaml'` | 依赖原来装在 DSH 的共享运行时里，那个环境被重置过（2026-11-08 早上发现 yaml/mss/psutil/PySide6 全没了） | 改用项目自带 `.venv`（已建好、已 gitignore）；`autostart.py` 和 `启动余光.bat` 都优先找 `.venv\Scripts\pythonw.exe` |
+| 程序突然起不来，报 `No module named 'yaml'` | 依赖原来装在 DSH 的共享运行时里，那个环境被重置过（2026-11-08 早上发现 yaml/mss/psutil/PySide6 全没了） | 依赖装在 `C:\Users\22760\AppData\Local\FocusPet\venv`（**纯英文路径**）；项目里的 `.venv` 现在只作回退，在中文目录下它会连带出 Edge 秒退、托盘不显示 |
 | 开机后托盘里找不到图标，以为没启动 | Windows 11 默认把新图标塞进「隐藏图标」；这台机器的注册表里 `pythonw.exe` 那条 **InitialTooltip 是空的**，所以在列表里可能只显示 pythonw | 加 `ipc.py`：再启动一次会连上已有实例并弹出「今日概览」（实测日志 `收到唤起请求`）。也可以在 设置→个性化→任务栏→其他系统托盘图标 里把「余光/pythonw」设为常显 |
 | 浏览器里很多窗口判成「未识别」，日报一片灰 | 浏览器规则只认标题关键词，`browser_generic` 兜底就是 unknown；没有模型时没人来补 | 已补 `browser_edu`（课程/错题/作业）、`browser_github[_ui]`（仓库页 + 中文界面）、`browser_own_report`（看自己的账单）等 6 条，11-06 当天未识别从 ~176 分钟降到 77 分钟。日常用 `--unknown N` 看还缺什么，`--reclassify <日期>` 让历史数据用上新规则 |
 | 声明了目标，但「深度专注」还是 0 | 专注只累计 `on_task=true` 且 ≥25 分钟的 deep_work 段；没目标时 `on_task` 是 null | 先声明目标；概览底部现在会直接提示这一点，启动 1 分钟也会弹一次提醒 |
 | `git push` 报 `Repository not found` | 大概率是 **URL 里的 GitHub 用户名写错**（这次写成了 `Misaki`，实际是 `Misaki-asahi`），不是权限问题 | 先去网页确认仓库地址，再 `git remote set-url origin <正确地址>` |
 | 担心把截图/数据库推上去 | `focuspet/data/` 与 `config.yaml` 已在 `.gitignore`，误用 `git add -f` 会进历史，删除需要 `git filter-repo` | 提交前 `git status` 扫一眼；永不对 data 目录用 `-f` |
+| 在 DSH 会话里跑 `--demo` 报 `PermissionError: ...\data\logs\focuspet.log` | 不是代码问题：这个会话的文件写权限只授到工作区根，`focuspet/` 没继承到，pwsh 子进程写不进去 | 会话切到「完全权限」(full access)；`write`/`edit` 工具本身不受影响，只有启动子进程写文件才会撞上 |
+| 会话里 `git fetch/push` 报 `schannel: SEC_E_NO_CREDENTIALS` | 这个 shell 拿不到 GitHub 凭据，不是仓库地址写错（`Repository not found` 才是地址错） | 推送在用户自己的终端做，或切完全权限后重试；拉取同理，别误判成远端有问题 |
+| 程序已经在跑时 `--once` / `--duration` 不采集，只弹面板 | `main()` 里单实例锁在 `--once` 之前就抢了，抢不到就 `ipc.request_show()` 然后退出 | 想验采集：先退出常驻实例，或直接看 `data/logs/focuspet.log` 里「完成 N 个批次」有没有在走 |
+| 报错里的路径显示成 `withϯ` | GBK 控制台的显示问题，文件本身正常 | 用 `read` / `read_image` 验证，别当成路径损坏 |
 
 ---
 
@@ -283,7 +293,7 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 
 工作区：就是含有 HANDOFF.md 的这个目录（工作区可以整体移动，本文不写死盘符）
 
-现状：代码 v0.3.0 正在我机器上真实运行（每天 22:00 出日报、周日 21:00 周报、月末月报），
+现状：代码 v0.3.1 正在我机器上真实运行（每天 22:00 出日报、周日 21:00 周报、月末月报），
 仓库已推到 GitHub：https://github.com/Misaki-asahi/yuguang
 
 动手前按顺序读：
@@ -317,10 +327,10 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 ### 代码侧自测（写进肌肉记忆）
 
 ```powershell
-$py = "E:\deepseek-data\dsh-runtimes\dsh-primary-runtime\dependencies\python\python.exe"
+$py = "C:\Users\22760\AppData\Local\FocusPet\venv\Scripts\python.exe"   # 跑 focuspet 只用这个（纯英文路径）
 Set-Location <工作区根>
-& $py -m focuspet --demo                       # 链路自测，出日报
-& $py -m focuspet --duration 25                # 试跑 25 秒，验采集线程
+& $py -m focuspet --demo                       # 链路自测，出日报（用 demo.db，不碰真实数据）
+& $py -m focuspet --duration 25                # 试跑 25 秒，验采集线程（常驻实例在跑时会变成唤起面板）
 # 看日报：用 headless Edge 截图，比肉眼开浏览器快
 & "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --headless=new `
   --disable-gpu --window-size=1080,1180 --virtual-time-budget=4000 `
