@@ -171,9 +171,9 @@ HANDOFF.md           项目交接：现状、坑、下一步
 
 ## 参与贡献
 
--想法来源于yv-bai。是本项目的思路提供者和重要参与者。
--桌宠来源于hunmer，上游归属 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)。
--欢迎 issue 和 PR。
+- 想法来源于 **yv-bai**，是本项目的思路提供者和重要参与者。
+- 桌宠素材来源于 **hunmer**，上游归属 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)。
+- 欢迎 issue 和 PR。
 
 ---
 
