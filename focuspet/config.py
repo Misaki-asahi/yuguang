@@ -76,7 +76,7 @@ DEFAULTS = {
         "auto_clean": True,       # 启动时 + 每天出完日报后自动清
     },
     "ui": {
-        "pet_enabled": True,
+        "pet_mode": "top",        # top=始终置顶 / desktop=只在桌面显示 / hidden=不显示
         "pet_position": [1720, 900],
         "pet_scale": 1.0,
         "pet_wander": False,      # 默认钉在原地；想要它自己溜达就改成 true
@@ -124,7 +124,12 @@ def load(path: Path | str | None = None) -> dict:
             raw = yaml.safe_load(f) or {}
         if not isinstance(raw, dict):
             raise ValueError("配置文件顶层必须是映射")
-        return _merge(DEFAULTS, raw)
+        cfg = _merge(DEFAULTS, raw)
+        # 老配置只有 pet_enabled；迁移成三档 pet_mode（top / desktop / hidden）
+        old_ui = raw.get("ui") if isinstance(raw.get("ui"), dict) else {}
+        if "pet_mode" not in old_ui and "pet_enabled" in old_ui:
+            cfg["ui"]["pet_mode"] = "top" if old_ui["pet_enabled"] else "hidden"
+        return cfg
     except Exception:
         backup = path.with_suffix(f".broken-{time.strftime('%Y%m%d-%H%M%S')}.yaml")
         try:

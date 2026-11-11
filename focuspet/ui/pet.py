@@ -102,7 +102,37 @@ class Pet(QWidget):
 
         pos = cfg["ui"].get("pet_position") or [1720, 900]
         self.move(int(pos[0]), int(pos[1]))
-        self.hide()
+        self._mode = "top"
+        self.set_mode(cfg["ui"].get("pet_mode", "top"))
+
+    # ---------------------------------------------------------------- 显示层级
+    MODES = ("top", "desktop", "hidden")
+
+    @property
+    def mode(self) -> str:
+        return self._mode
+
+    def set_mode(self, mode: str) -> None:
+        """切换桌宠的显示层级（控制面板上那三档）。
+
+        top      始终置顶：压在所有窗口上面
+        desktop  只在桌面显示：沉到普通窗口下面，桌面看得见、一开窗口就藏起来
+        hidden   不显示：提醒改走托盘气泡
+        """
+        mode = mode if mode in self.MODES else "top"
+        self._mode = mode
+        pos = self.pos()
+        flags = Qt.FramelessWindowHint | Qt.Tool
+        if mode == "top":
+            flags |= Qt.WindowStaysOnTopHint
+        elif mode == "desktop":
+            flags |= Qt.WindowStaysOnBottomHint
+        self.setWindowFlags(flags)      # 这个调用会把窗口藏起来
+        if mode == "hidden":
+            self.hide()
+            return
+        self.move(pos)                  # 重建窗口后位置会丢，放回去
+        self.show()
         self._apply_mask()
 
     # ---------------------------------------------------------------- 立绘

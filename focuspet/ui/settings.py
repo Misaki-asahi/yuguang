@@ -92,9 +92,6 @@ class SettingsDialog(QDialog):
         self.budget.setValue(float(cfg["analyze"].get("daily_budget_cny", 2.0)))
         form.addRow("每日预算", self.budget)
 
-        self.pet = QCheckBox("显示桌宠")
-        self.pet.setChecked(bool(cfg["ui"].get("pet_enabled", True)))
-        form.addRow("", self.pet)
 
         # ---------------------------------------------------------- 数据与缓存
         data_box = QGroupBox("数据与缓存")
@@ -195,6 +192,5 @@ class SettingsDialog(QDialog):
         self.cfg["judge"]["off_task_minutes"] = self.off_task.value()
         self.cfg["judge"]["cooldown_minutes"] = self.cooldown.value()
         self.cfg["analyze"]["daily_budget_cny"] = self.budget.value()
-        self.cfg["ui"]["pet_enabled"] = self.pet.isChecked()
         self._sync_retention()
         config.save(self.cfg)

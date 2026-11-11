@@ -79,10 +79,6 @@ class Tray(QSystemTrayIcon):
         self.act_today.triggered.connect(self._show_today)
         self.act_report = QAction("打开今日日报", m)
         self.act_report.triggered.connect(self._open_report)
-        self.act_pet = QAction("显示桌宠", m)
-        self.act_pet.setCheckable(True)
-        self.act_pet.setChecked(bool(self.app.cfg["ui"].get("pet_enabled", True)))
-        self.act_pet.triggered.connect(self._toggle_pet)
         self.act_settings = QAction("设置…", m)
         self.act_settings.triggered.connect(self._open_settings)
         self.act_quit = QAction("退出", m)
@@ -94,7 +90,6 @@ class Tray(QSystemTrayIcon):
         m.addAction(self.act_pause)
         m.addAction(self.act_today)
         m.addAction(self.act_report)
-        m.addAction(self.act_pet)
         m.addAction(self.act_settings)
         m.addSeparator()
         m.addAction(self.act_quit)
@@ -135,14 +130,6 @@ class Tray(QSystemTrayIcon):
         self.act_pause.setText("继续采集" if checked else "暂停采集")
         self.message("余光", "采集已暂停" if checked else "采集已恢复")
 
-    def _toggle_pet(self, checked: bool):
-        self.app.cfg["ui"]["pet_enabled"] = checked
-        if checked:
-            self.pet.show()
-            self.pet.set_state("idle")
-        else:
-            self.pet.hide()
-
     def _show_today(self):
         day = day_of(time.time())
         blocks = [dict(b) for b in self.app.store.blocks(day)]
@@ -180,7 +167,6 @@ class Tray(QSystemTrayIcon):
         dlg = SettingsDialog(self.app.cfg)
         if dlg.exec():
             dlg.apply()
-            self.act_pet.setChecked(bool(self.app.cfg["ui"].get("pet_enabled", True)))
             self.message("余光", "设置已保存")
 
     def _quit(self):
@@ -194,7 +180,7 @@ class Tray(QSystemTrayIcon):
                 log.info("收到唤起请求，打开控制面板")
                 self.open_panel()
                 continue
-            if self.app.cfg["ui"].get("pet_enabled", True):
+            if self.pet.mode != "hidden":
                 self.pet.alert(text, 5000, level)
             else:
                 self.showMessage("余光", text, QSystemTrayIcon.Information, 4000)
@@ -210,11 +196,12 @@ def run_ui(app, show_panel: bool = False) -> int:
     bridge = UiBridge()
     app.bridge = bridge
     pet = Pet(app.cfg)
+    app.pet = pet                       # 控制面板要能立刻切换桌宠显示层级
     tray = Tray(app, pet, bridge)
     tray.show()
 
-    if app.cfg["ui"].get("pet_enabled", True):
-        pet.show()
+    # Pet 自己按 ui.pet_mode 决定显示还是藏起来（top / desktop / hidden）
+    if pet.mode != "hidden":
         QTimer.singleShot(400, pet.show_idle_pos)
 
     if show_panel:                       # 快捷方式带 --panel：启动后直接把面板摆出来

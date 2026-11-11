@@ -9,8 +9,8 @@ from __future__ import annotations
 import time
 
 from PySide6.QtCore import Qt, QTimer, QTime
-from PySide6.QtWidgets import (QCheckBox, QHBoxLayout, QInputDialog, QLabel,
-                               QMessageBox, QPushButton, QTimeEdit,
+from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QInputDialog,
+                               QLabel, QMessageBox, QPushButton, QTimeEdit,
                                QVBoxLayout, QWidget)
 
 from .. import autostart, config
@@ -106,6 +106,19 @@ class ControlPanel(QWidget):
         row2.addWidget(b_settings)
         root.addLayout(row2)
 
+        # 桌宠的显示层级：始终置顶 / 只在桌面显示 / 不显示
+        row_pet = QHBoxLayout()
+        row_pet.addWidget(QLabel("桌宠"))
+        self.pet_mode = QComboBox()
+        self.pet_mode.addItem("始终置顶", "top")
+        self.pet_mode.addItem("只在桌面显示", "desktop")
+        self.pet_mode.addItem("不显示", "hidden")
+        self.pet_mode.setCurrentIndex(max(0, self.pet_mode.findData(
+            str(self.app.cfg["ui"].get("pet_mode", "top")))))
+        self.pet_mode.currentIndexChanged.connect(self._change_pet_mode)
+        row_pet.addWidget(self.pet_mode, 1)
+        root.addLayout(row_pet)
+
         row3 = QHBoxLayout()
         self.chk_autostart = QCheckBox("开机自启")
         self.chk_autostart.setChecked(autostart.is_installed())
@@ -160,6 +173,7 @@ class ControlPanel(QWidget):
                     self.btn_carry.hide()
                     self._set_primary(self.btn_goal, True)
 
+            self.btn_goal.setText("点击更换目标" if goal else "开始专注…")
             # 没声明目标时「深度专注 0 分钟」是误导：那是没测量，不是没干活
             focus_txt = (fmt_duration(m["focus_minutes"]) if m.get("goal_tracked")
                          else f"未统计（深度工作 {fmt_duration(m['deep_minutes'])}）")
@@ -199,10 +213,23 @@ class ControlPanel(QWidget):
 
     # ---------------------------------------------------------------- 动作
     def _set_goal(self) -> None:
-        text, ok = QInputDialog.getText(self, "开始专注", "今天要做什么？（一句话即可）")
+        goal = self.app.store.active_goal()
+        title = "更换目标" if goal else "开始专注"
+        text, ok = QInputDialog.getText(self, title, "今天要做什么？（一句话即可）",
+                                        text=goal["text"] if goal else "")
         if ok and text.strip():
             self.app.store.set_goal(text.strip())
             self.refresh()
+
+    def _change_pet_mode(self, _index: int) -> None:
+        """桌宠显示层级：立即生效并写回 config.yaml。"""
+        mode = str(self.pet_mode.currentData() or "top")
+        self.app.cfg["ui"]["pet_mode"] = mode
+        config.save(self.app.cfg)
+        pet = getattr(self.app, "pet", None)
+        if pet is not None:
+            pet.set_mode(mode)
+        log.info("桌宠显示层级改为 %s", mode)
 
     def _carry_goal(self) -> None:
         text = self.app.store.last_goal_before(day_of(time.time()))
