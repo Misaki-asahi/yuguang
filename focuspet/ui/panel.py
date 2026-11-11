@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QInputDialog,
                                QLabel, QMessageBox, QPushButton, QTimeEdit,
                                QVBoxLayout, QWidget)
 
-from .. import autostart, config
+from .. import autostart, config, goalkind
 from ..analyze.aggregate import fmt_duration, metrics
 from ..capture.store import day_bounds, day_of
 from ..log import get
@@ -71,6 +71,17 @@ class ControlPanel(QWidget):
         self.lbl_goal.setObjectName("goal")
         self.lbl_goal.setWordWrap(True)
         root.addWidget(self.lbl_goal)
+
+        # 目标类型：规则读不懂语义，靠这一项决定「消耗类算不算在任务上」
+        row_kind = QHBoxLayout()
+        row_kind.addWidget(QLabel("目标类型"))
+        self.goal_kind = QComboBox()
+        for key, name in goalkind.KINDS.items():
+            self.goal_kind.addItem(name, key)
+        self.goal_kind.setToolTip("选「学习」时，看课程视频不算跑偏；不选则按目标文字猜")
+        row_kind.addWidget(self.goal_kind)
+        row_kind.addStretch()
+        root.addLayout(row_kind)
 
         self.btn_goal = QPushButton("开始专注…")
         self.btn_goal.setObjectName("primary")
@@ -152,7 +163,12 @@ class ControlPanel(QWidget):
 
             self.lbl_state.setText("已暂停" if self.app.paused else "正在记录")
             if goal:
-                self.lbl_goal.setText(f"今日目标：{goal['text']}")
+                gk = goal["kind"] if "kind" in goal.keys() else "auto"
+                suffix = "" if gk == "auto" else f"（{goalkind.label(gk)}）"
+                self.lbl_goal.setText(f"今日目标：{goal['text']}{suffix}")
+                idx = self.goal_kind.findData(gk)
+                if idx >= 0:
+                    self.goal_kind.setCurrentIndex(idx)
             else:
                 self.lbl_goal.setText("今日目标：未声明 —— 今天只统计时长，不判断是否跑偏")
 
@@ -218,7 +234,8 @@ class ControlPanel(QWidget):
         text, ok = QInputDialog.getText(self, title, "今天要做什么？（一句话即可）",
                                         text=goal["text"] if goal else "")
         if ok and text.strip():
-            self.app.store.set_goal(text.strip())
+            self.app.store.set_goal(text.strip(),
+                                    kind=str(self.goal_kind.currentData() or "auto"))
             self.refresh()
 
     def _change_pet_mode(self, _index: int) -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from .. import config
+from .. import config, goalkind
 from ..capture.store import day_of
 from ..log import get
 from . import aggregate, vlm
@@ -213,14 +213,18 @@ class Scheduler:
         self.store.record_vlm_unknown(rows)
 
     def _on_task(self, cat: str, ts: int):
-        """没有目标声明就不判定 on_task（3.1：先有目标，才有摸鱼）。"""
-        if not self.store.active_goal(ts):
+        """没有目标声明就不判定 on_task（3.1：先有目标，才有摸鱼）。
+
+        目标类型（工作/学习/休闲/生活）决定消耗类算不算在任务上：
+        目标是「看课程视频」时，娱乐类也是任务内的事。
+        """
+        goal = self.store.active_goal(ts)
+        if not goal:
             return None
-        if cat in aggregate.PRODUCTIVE:
-            return True
-        if cat in aggregate.CONSUMING:
-            return False
-        return None
+        if cat not in aggregate.PRODUCTIVE and cat not in aggregate.CONSUMING:
+            return None                     # system / unknown 不参与判定
+        kind = goal["kind"] if "kind" in goal.keys() else "auto"
+        return goalkind.allows(kind, goal["text"], cat)
 
     def _vlm_allowed(self) -> bool:
         """能不能调模型：没配模型、或隐私档是「只发元数据」时都不调。"""

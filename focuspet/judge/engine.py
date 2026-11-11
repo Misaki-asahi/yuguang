@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass
 
 from ..analyze.aggregate import CONSUMING
+from .. import goalkind
 
 
 @dataclass
@@ -59,6 +60,12 @@ class Judge:
         # 3) 元数据判定：只有明确的消耗类才继续
         cat = block["category"]
         if cat not in CONSUMING:
+            return QUIET
+
+        # 3.5) 目标本身就是「看课程视频 / 放松」这类消耗类活动时，不判跑偏。
+        #      类型由用户声明（work/study/leisure/life），auto 时按关键词猜。
+        kind = goal["kind"] if "kind" in goal.keys() else "auto"
+        if goalkind.allows(kind, goal["text"], cat):
             return QUIET
 
         # 4) 置信度门槛

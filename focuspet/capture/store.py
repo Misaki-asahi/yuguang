@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS goal (
   id         INTEGER PRIMARY KEY,
   date       TEXT NOT NULL,
   text       TEXT NOT NULL,
+  kind       TEXT DEFAULT 'auto',   -- work / study / leisure / life / auto
   started_ts INTEGER NOT NULL,
   ended_ts   INTEGER,
   status     TEXT DEFAULT 'active'
@@ -137,6 +138,15 @@ class Store:
                     self.conn.execute("ALTER TABLE sample ADD COLUMN settled INTEGER DEFAULT 1")
                     self.conn.commit()
                     log.info("sample 表补上 settled 列")
+                except sqlite3.Error:
+                    pass
+            # 老库补列：目标类型 kind 是后加的
+            gcols = {r["name"] for r in self.conn.execute("PRAGMA table_info(goal)")}
+            if "kind" not in gcols:
+                try:
+                    self.conn.execute("ALTER TABLE goal ADD COLUMN kind TEXT DEFAULT 'auto'")
+                    self.conn.commit()
+                    log.info("goal 表补上 kind 列")
                 except sqlite3.Error:
                     pass
         try:
@@ -317,7 +327,7 @@ class Store:
             ))
 
     # ------------------------------------------------------------ goal
-    def set_goal(self, text: str, ts: int | None = None) -> int:
+    def set_goal(self, text: str, ts: int | None = None, kind: str = "auto") -> int:
         ts = int(ts or time.time())
         day = day_of(ts)
         with self._lock:
@@ -325,8 +335,8 @@ class Store:
                 "UPDATE goal SET status='done', ended_ts=? WHERE date=? AND status='active'",
                 (ts, day))
             cur = self.conn.execute(
-                "INSERT INTO goal(date, text, started_ts, status) VALUES(?,?,?,'active')",
-                (day, text, ts))
+                "INSERT INTO goal(date, text, kind, started_ts, status) VALUES(?,?,?,?,'active')",
+                (day, text, (kind or "auto"), ts))
             self.conn.commit()
             return cur.lastrowid
 
