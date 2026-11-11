@@ -28,12 +28,12 @@ Windows 桌面端，Python 实现。记录你实际在用什么窗口，用规�
 | 模块 | 说明 |
 |---|---|
 | 采集 | 每 5 秒记前台窗口（标题/进程），每 10 分钟截一张图，dHash 去重，敏感应用跳过 |
-| 分析 | 40 条 YAML 规则（零成本）优先；规则拿不准且配了视觉模型时才调模型 |
+| 分析 | 46 条 YAML 规则（零成本）优先；只有规则认不出的段才交给视觉模型 |
 | 聚合 | 把碎片合成人类可读的时间块，补灰段表示断档，绝不插值 |
 | 提醒 | 六道门全过才提醒（目标 → 豁免 → 消耗类 → 置信度 → 持续 3 分钟 → 冷却），L1–L4 分级 |
 | 日报 | 每天 22:00，一句话结论 + 指标 + 时间轴 + 可点开的证据 |
 | 周报/月报 | 每周日 21:00 / 每月最后一天 21:00，从时间块汇总，带与上周期对比 |
-| 桌宠 | QPainter 画的，不依赖美术资源；跑偏时探头说话，专注够久时也会夸一句 |
+| 桌宠 | 菊鸳动作包（webp 逐帧）；显示层级可选「始终置顶 / 只在桌面显示 / 不显示」；跑偏时探头说话，专注够久时也会夸一句 |
 
 ---
 
@@ -42,8 +42,10 @@ Windows 桌面端，Python 实现。记录你实际在用什么窗口，用规�
 需要 Python 3.11+（开发环境是 3.12）和 Windows 10/11。
 
 ```powershell
-cd focuspet
-pip install -r requirements.txt
+# 在仓库根目录（有 focuspet/ 这一层）执行，别 cd 进 focuspet/
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r focuspet\requirements.txt
 
 # 1) 先看效果：造一天演示数据，生成示例日报（不碰你的屏幕，不写真实库）
 python -m focuspet --demo
@@ -55,8 +57,51 @@ python -m focuspet --once
 python -m focuspet
 ```
 
+> `python -m focuspet` 必须在**仓库根目录**执行。`cd focuspet` 之后再跑会报
+> `No module named focuspet`——这个包的名字就是 `focuspet`，得让它在模块搜索路径的第一层。
+
 **用起来只需要记住一件事**：托盘右键 →「开始专注…」写一句今天要干什么。
 没有目标声明，它只统计时长、不判断是否跑偏——这是设计上的硬规则，不是 bug。
+
+### 做成桌面快捷方式（不想每次开命令行）
+
+```powershell
+$pythonw = (Resolve-Path ".venv\Scripts\pythonw.exe").Path      # pythonw：不弹黑框
+$shell = New-Object -ComObject WScript.Shell
+$lnk = $shell.CreateShortcut("$env:USERPROFILE\Desktop\余光.lnk")
+$lnk.TargetPath = $pythonw
+$lnk.Arguments = "-m focuspet --panel"                          # 启动并打开控制面板
+$lnk.WorkingDirectory = (Get-Location).Path                     # 必须是仓库根
+$lnk.IconLocation = "$PWD\focuspet\assets\icon.ico"
+$lnk.Save()
+```
+
+> 如果仓库路径里有中文，Windows 的 Shell 可能读不到这个 `.ico`（快捷方式显示成空白图标）——
+> 把图标复制到纯英文目录再引用即可，不影响程序本身。
+> 开机自启：`.venv\Scripts\python.exe focuspet\scripts\autostart.py install`
+
+### 配视觉模型（可选，不配也能用）
+
+不配时全部由 46 条规则判断，零成本、不联网。想让规则认不出的窗口也能分类，就接一个
+支持图片输入的 OpenAI 兼容模型（示例是免费的智谱 GLM-4V-Flash）：
+
+```powershell
+setx FOCUSPET_KEY "你的key"      # 写进用户环境变量，不用每次开终端
+```
+
+然后改 `focuspet/config.yaml`：
+
+```yaml
+analyze:
+  mode: cloud
+  endpoint: "https://open.bigmodel.cn/api/paas/v4"
+  model: "glm-4v-flash"
+  max_tokens: 1024               # GLM-4V 系列上限就是 1024
+```
+
+改完**重启程序**。两个容易踩的点：用 `setx` 而不是 `$env:`（从快捷方式启动的进程读不到
+当前终端里的临时变量）；key 只走环境变量，不要写进 `config.yaml`（那个文件虽然被 gitignore，
+但手滑 `git add -f` 就进历史了）。
 
 其它命令：
 
@@ -97,7 +142,7 @@ focuspet/            程序本体（下面的目录都在这一层里）
 ├─ judge/            判定链、分级干预、文案
 ├─ report/           日报 / 周报 / 月报模板与渲染
 ├─ ui/               托盘、桌宠、设置面板
-└─ config/rules.yaml 40 条分类规则（改规则不用改代码）
+└─ config/rules.yaml 46 条分类规则（改规则不用改代码）
 
 content/             设计文档的 Markdown 源文
 build_doc.py         把 content/*.md 渲染成 Word
