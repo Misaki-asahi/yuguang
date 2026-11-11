@@ -307,6 +307,70 @@ def _cmd_unknown(store, days: int = 2) -> None:
     print("  python -m focuspet --reclassify <日期>   # 让历史数据也用上新规则")
 
 
+def _title_head(title: str) -> str:
+    """浏览器标题里取「页面名」：`飞书文档 - Google Chrome` → `飞书文档`。"""
+    parts = [p.strip() for p in title.replace("—", "-").split(" - ") if p.strip()]
+    if len(parts) >= 2:
+        return parts[-2] if parts[-1].lower().find("chrome") >= 0 or len(parts) > 2 else parts[0]
+    return parts[0] if parts else ""
+
+
+def _cmd_suggest_rules(store, days: int = 7) -> None:
+    """把「规则没认出来、被模型补上」的窗口归纳成候选规则（只打印，不写文件）。"""
+    import collections
+
+    browsers = {"chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe"}
+    rows = store.vlm_unknowns(days)
+    if not rows:
+        print(f"最近 {days} 天没有需要模型补的未知窗口——规则覆盖得挺好。")
+        return
+
+    groups: dict[tuple, dict] = {}
+    for r in rows:
+        proc = (r["proc"] or "").strip()
+        if not proc or not r["category"] or r["category"] == "unknown":
+            continue        # 模型也没认出来的，别拿去生成规则
+        head = _title_head(r["title"] or "") if proc.lower() in browsers else ""
+        key = (proc.lower(), r["category"], head)
+        g = groups.setdefault(key, {"proc": proc, "category": r["category"], "n": 0, "conf": 0.0,
+                                    "act": collections.Counter(), "title": r["title"] or ""})
+        g["n"] += 1
+        g["conf"] += float(r["confidence"] or 0)
+        if r["activity"]:
+            g["act"][r["activity"]] += 1
+
+    cands = [g for g in groups.values() if g["n"] >= 3]
+    cands.sort(key=lambda g: -g["n"])
+
+    print(f"最近 {days} 天：模型补了 {len(rows)} 个未知窗口，"
+          f"归纳出 {len(cands)} 条候选规则（出现 ≥3 次才算）\n")
+    if not cands:
+        print("次数还不够，再攒几天。")
+        return
+
+    print(f"{'次数':>4} {'置信度':>6}  进程 / 分类")
+    for g in cands:
+        head = f" 「{g['title'][:24]}」" if g["title"] else ""
+        print(f"{g['n']:>4} {g['conf'] / g['n']:>6.2f}  "
+              f"{g['proc']:<24} {g['category']}{head}")
+
+    print("\n确认无误的话，把下面这些追加到 focuspet/config/rules.yaml 的 rules: 下面：\n")
+    stamp = time.strftime("%Y%m%d")
+    for i, g in enumerate(cands, 1):
+        act = g["act"].most_common(1)[0][0] if g["act"] else "未识别"
+        head = _title_head(g["title"]) if g["proc"].lower() in browsers else ""
+        when = f'{{proc: ["{g["proc"]}"]'
+        if head:
+            when += f', title_contains: ["{head}"]'
+        when += "}"
+        print(f"  - id: learned_{stamp}_{i}")
+        print(f"    note: 模型归纳：{g['proc']} 出现 {g['n']} 次，均判 {g['category']}")
+        print(f"    when: {when}")
+        print(f"    then: {{category: {g['category']}, weight: 0.7, activity: {act}}}")
+    print("\nweight 给 0.7 是故意的：落在「规则 + 模型交叉验证」那一档，"
+          "不会直接当成 0.9 的硬结论。")
+
+
 def _cmd_reclassify(cfg, store, day: str) -> int:
     """用当前规则重跑某一天：只重算 analysis / block，采样和截图不动。"""
     from .analyze.scheduler import Scheduler
@@ -344,6 +408,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="重新生成某天的日报并用浏览器打开（同日旧版会被覆盖）")
     p.add_argument("--unknown", nargs="?", const=2, type=int, metavar="DAYS",
                    help="列出最近 N 天里被判为「未识别」的窗口，用来补规则（默认 2 天）")
+    p.add_argument("--suggest-rules", nargs="?", const=7, type=int, metavar="DAYS",
+                   help="把模型补过的未知窗口归纳成候选规则（默认最近 7 天，只打印不写文件）")
     p.add_argument("--reclassify", nargs="?", const="today", metavar="YYYY-MM-DD",
                    help="用当前规则重跑某天的分类（默认今天），历史时间块会更新")
     p.add_argument("--weekly", action="store_true", help="生成本周周报并打开")
@@ -389,6 +455,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.unknown:
         store = Store()
         _cmd_unknown(store, args.unknown)
+        store.close()
+        return 0
+
+    if args.suggest_rules:
+        store = Store()
+        _cmd_suggest_rules(store, args.suggest_rules)
         store.close()
         return 0
 

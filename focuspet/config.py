@@ -150,8 +150,22 @@ def save(cfg: dict, path: Path | str | None = None) -> None:
 
 
 def env_key(cfg: dict) -> str:
-    """API Key 只从环境变量读，不写进配置文件（附录 C 的约定）。"""
-    return os.environ.get(cfg["analyze"].get("api_key_env", "FOCUSPET_KEY"), "").strip()
+    """API Key 只从环境变量读，不写进配置文件（附录 C 的约定）。
+
+    进程环境里没有时再读一次「用户环境变量」注册表：`setx` 之后 Explorer 未必
+    刷新过自己的环境块，从快捷方式/开机自启拉起来的进程会拿不到 key。
+    """
+    name = cfg["analyze"].get("api_key_env", "FOCUSPET_KEY")
+    val = (os.environ.get(name) or "").strip()
+    if val:
+        return val
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+            val = str(winreg.QueryValueEx(k, name)[0]).strip()
+    except Exception:
+        val = ""
+    return val
 
 
 def day_dir(day: str) -> Path:

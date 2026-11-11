@@ -15,6 +15,14 @@ log = get("scheduler")
 MAX_FRAMES = 6
 
 
+def _hm(ts: int) -> str:
+    return time.strftime("%H:%M", time.localtime(int(ts)))
+
+
+def _in_ranges(ts: int, ranges: list[dict]) -> bool:
+    return any(int(r["start_ts"]) <= ts < int(r["end_ts"]) for r in ranges)
+
+
 class Scheduler:
     def __init__(self, cfg: dict, store, ruleset: RuleSet | None = None):
         self.cfg = cfg
@@ -76,28 +84,90 @@ class Scheduler:
             return False
 
         segs = self._rules_segments(samples)
-        source = "rules"
+        for s in segs:
+            s["source"] = "rules"
 
-        if self._should_use_vlm(samples):
-            batch = self._build_batch(ws, we, samples)
-            if batch and batch["frames"]:
-                spend = float(self.store.kv_get(f"spend:{day_of(ws)}", 0) or 0)
-                est = vlm.estimate_cost(self.cfg, len(batch["frames"]))
-                budget = float(self.cfg["analyze"].get("daily_budget_cny", 2.0))
-                if spend + est <= budget:
-                    out, err = vlm.analyze(self.cfg, batch)
-                    if out:
-                        segs = out
-                        source = "vlm"
-                        self.store.kv_set(f"spend:{day_of(ws)}", round(spend + est, 4))
+        # 只把「规则认不出来」的段交给模型：按段升级，不是整批重算。
+        # 规则已经认对的段原样保留，模型只负责填洞。
+        if self._vlm_allowed():
+            holes = [s for s in segs if s["category"] == "unknown"]
+            if holes:
+                sub = [r for r in samples if _in_ranges(int(r["ts"]), holes)]
+                batch = self._build_batch(ws, we, sub, focus=holes)
+                if batch and batch["frames"]:
+                    spend = float(self.store.kv_get(f"spend:{day_of(ws)}", 0) or 0)
+                    est = vlm.estimate_cost(self.cfg, len(batch["frames"]))
+                    budget = float(self.cfg["analyze"].get("daily_budget_cny", 2.0))
+                    if spend + est <= budget:
+                        out, err = vlm.analyze(self.cfg, batch)
+                        if out:
+                            segs = self._fill_holes(segs, out)
+                            try:
+                                self._record_unknowns(out, samples)
+                            except Exception:
+                                log.debug("记录未知段失败", exc_info=True)
+                            self.store.kv_set(f"spend:{day_of(ws)}",
+                                              round(spend + est, 4))
+                        else:
+                            log.warning("补未知段失败，本批保留规则结果：%s", err)
                     else:
-                        log.warning("本批降级为规则结果：%s", err)
-                else:
-                    log.warning("今日预算已用完（%.2f/%.2f），本批只用规则", spend, budget)
+                        log.warning("今日预算已用完（%.2f/%.2f），本批只用规则", spend, budget)
 
-        rows = [{**s, "source": source} for s in segs]
-        self.store.insert_analysis(f"{ws}-{we}", rows)
+        self.store.insert_analysis(f"{ws}-{we}", segs)
         return True
+
+    # ---------------------------------------------------------------- 段级合并
+    @staticmethod
+    def _fill_holes(segs: list[dict], out: list[dict]) -> list[dict]:
+        """把模型段填进 unknown 段覆盖的时间里，其余规则段原样保留。
+
+        模型可能返回跨出未知窗口的段，这里按未知窗口裁剪；没被模型覆盖到的
+        残余时间仍然算 unknown，绝不让模型替我们把已知段改写掉。
+        """
+        filled: list[dict] = []
+        for s in segs:
+            if s["category"] != "unknown":
+                filled.append(s)
+                continue
+            covered = sorted((m for m in out
+                              if m["end_ts"] > s["start_ts"] and m["start_ts"] < s["end_ts"]),
+                             key=lambda x: x["start_ts"])
+            if not covered:
+                filled.append(s)
+                continue
+            cursor = s["start_ts"]
+            for m in covered:
+                ms = max(m["start_ts"], s["start_ts"])
+                me = min(m["end_ts"], s["end_ts"])
+                if ms >= me:
+                    continue
+                if ms > cursor:
+                    filled.append({**s, "start_ts": cursor, "end_ts": ms})
+                filled.append({**m, "start_ts": ms, "end_ts": me, "source": "vlm"})
+                cursor = max(cursor, me)
+            if cursor < s["end_ts"]:
+                filled.append({**s, "start_ts": cursor, "end_ts": s["end_ts"]})
+        filled.sort(key=lambda x: x["start_ts"])
+        return filled
+
+    def _record_unknowns(self, out: list[dict], samples: list) -> None:
+        """把模型对这些未知窗口的判断落库，`--suggest-rules` 用它归纳候选规则。"""
+        rows = []
+        for s in out:
+            inside = [r for r in samples
+                      if s["start_ts"] <= int(r["ts"]) < s["end_ts"]
+                      and not r["idle"] and (r["proc"] or "")]
+            if not inside:
+                continue
+            counter: dict[tuple[str, str], int] = {}
+            for r in inside:
+                key = ((r["proc"] or "").lower(), (r["title"] or "")[:80])
+                counter[key] = counter.get(key, 0) + 1
+            (proc, title) = max(counter, key=counter.get)
+            rows.append({"ts": s["start_ts"], "proc": proc, "title": title,
+                         "category": s["category"], "confidence": s["confidence"],
+                         "activity": s.get("activity", "")})
+        self.store.record_vlm_unknown(rows)
 
     def _on_task(self, cat: str, ts: int):
         """没有目标声明就不判定 on_task（3.1：先有目标，才有摸鱼）。"""
@@ -109,22 +179,11 @@ class Scheduler:
             return False
         return None
 
-    def _should_use_vlm(self, samples: list) -> bool:
+    def _vlm_allowed(self) -> bool:
+        """能不能调模型：没配模型、或隐私档是「只发元数据」时都不调。"""
         if not vlm.enabled(self.cfg):
             return False
-        if self.cfg["privacy"].get("mode") == "meta_only":
-            return False
-        known = 0
-        for r in samples:
-            if r["idle"] or r["sensitive"]:
-                known += 1
-                continue
-            hit = self.rules.classify(r["proc"], r["title"])
-            if hit.weight >= 0.9 and hit.category != "unknown":
-                known += 1
-        ratio = known / max(1, len(samples))
-        # A 档覆盖率够高就别花钱；低于 75% 才升级到 B 档
-        return ratio < 0.75
+        return self.cfg["privacy"].get("mode") != "meta_only"
 
     def _rules_segments(self, samples: list) -> list[dict]:
         segs: list[dict] = []
@@ -175,7 +234,8 @@ class Scheduler:
             segs.append(cur)
         return None
 
-    def _build_batch(self, ws: int, we: int, samples: list) -> dict | None:
+    def _build_batch(self, ws: int, we: int, samples: list,
+                     focus: list[dict] | None = None) -> dict | None:
         timeline = [(int(r["ts"]), r["proc"], r["title"]) for r in samples]
         shots = [r for r in samples if r["shot"]]
         frames: list[str] = []
@@ -190,6 +250,8 @@ class Scheduler:
             "start_ts": ws, "end_ts": we, "timeline": timeline,
             "frames": frames, "goal": goal["text"] if goal else "",
             "prev": prev,
+            "focus": "、".join(f"{_hm(s['start_ts'])}-{_hm(s['end_ts'])}" for s in focus)
+                     if focus else "",
         }
 
     def _prev_summary(self, ws: int) -> str:

@@ -95,6 +95,18 @@ CREATE TABLE IF NOT EXISTS kv (
   key   TEXT PRIMARY KEY,
   value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS vlm_unknown (
+  id         INTEGER PRIMARY KEY,
+  day        TEXT NOT NULL,
+  ts         INTEGER NOT NULL,
+  proc       TEXT,
+  title      TEXT,
+  category   TEXT,
+  confidence REAL,
+  activity   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_vlm_unknown_day ON vlm_unknown(day);
 """
 
 
@@ -340,6 +352,27 @@ class Store:
             return self.conn.execute(
                 "SELECT * FROM goal WHERE date=? AND started_ts <= ?"
                 " ORDER BY started_ts DESC, id DESC LIMIT 1", (day, when)).fetchone()
+
+    # ------------------------------------------------------------ 模型补洞记录
+    def record_vlm_unknown(self, rows: list[dict]) -> None:
+        """记下「规则没认出来、由模型补上」的窗口，`--suggest-rules` 用它归纳规则。"""
+        if not rows:
+            return
+        with self._lock:
+            for r in rows:
+                self.conn.execute(
+                    "INSERT INTO vlm_unknown(day, ts, proc, title, category,"
+                    " confidence, activity) VALUES(?,?,?,?,?,?,?)",
+                    (day_of(r["ts"]), int(r["ts"]), r.get("proc", ""),
+                     r.get("title", ""), r.get("category", ""),
+                     float(r.get("confidence") or 0), r.get("activity", "")))
+            self.conn.commit()
+
+    def vlm_unknowns(self, days: int = 7) -> list[sqlite3.Row]:
+        since = day_of(time.time() - max(1, days) * 86400)
+        with self._lock:
+            return list(self.conn.execute(
+                "SELECT * FROM vlm_unknown WHERE day >= ? ORDER BY ts", (since,)))
 
     # ------------------------------------------------------------ intervention
     def add_intervention(self, level: int, rule_id: str, reason: str,

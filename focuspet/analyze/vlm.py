@@ -46,6 +46,9 @@ USER_TEMPLATE = """【用户今日目标】
 【时间窗】
 {wstart} 到 {wend}
 
+【需要判断的片段】
+{focus}
+
 【前台窗口记录】
 {timeline}
 
@@ -62,7 +65,12 @@ def enabled(cfg: dict) -> bool:
     a = cfg["analyze"]
     if a.get("mode") == "rules_only":
         return False
-    return bool(a.get("endpoint") and a.get("model"))
+    if not (a.get("endpoint") and a.get("model")):
+        return False
+    # 云端模式下没有 key 就等于没配：否则批次会白切到 15 分钟，每批再报一次「未设置 Key」
+    if a.get("mode") == "cloud" and not config.env_key(cfg):
+        return False
+    return True
 
 
 def estimate_cost(cfg: dict, n_images: int) -> float:
@@ -89,6 +97,7 @@ def build_messages(cfg: dict, batch: dict) -> dict:
         goal=batch.get("goal") or "（今天没有声明目标，只做分类）",
         wstart=_hm(batch["start_ts"]),
         wend=_hm(batch["end_ts"]),
+        focus=batch.get("focus") or "整个时间窗",
         timeline="\n".join(lines),
         n=len(batch.get("frames", [])),
         prev=batch.get("prev") or "（无）",
