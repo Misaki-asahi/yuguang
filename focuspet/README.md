@@ -56,6 +56,7 @@ python -m focuspet --report --no-open    # 只要文件，不弹浏览器
 # 6) 规则调优：先看哪些窗口没认出来，补完再把历史数据重算一遍
 python -m focuspet --unknown 2           # 列出最近 2 天被判为「未识别」的窗口
 python -m focuspet --suggest-rules 7     # 模型补过的未知窗口 → 候选规则（只打印不写文件）
+python -m focuspet --fill-unknown 2      # 把最近 2 小时仍为「未识别」的窗口重跑一遍（再调一次模型）
 python -m focuspet --reclassify          # 用当前规则重跑今天（也可指定日期）
 ```
 
@@ -209,6 +210,9 @@ analyze:
 
 模型给出的 `unknown` 结论还会落一张 `vlm_unknown` 表，攒够了可以用
 `--suggest-rules` 归纳成候选规则，确认后自己粘进 `config/rules.yaml`。
+
+**补不上会重试**：某一批因为网络抖动或模型答非所问留下 `unknown`，分析线程会在之后
+每分钟自动重跑那些窗口（每窗最多 2 次），补到就写回；也可以手动 `--fill-unknown`。
 候选规则的 `weight` 固定给 0.7（落在「规则 + 模型交叉验证」那一档），
 不会直接当成 0.9 的硬结论——误报比漏报贵。
 
