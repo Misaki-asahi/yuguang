@@ -145,6 +145,11 @@ class App:
                 n = self.scheduler.run()
                 if n:
                     log.info("完成 %d 个批次", n)
+                # 当时没补上的洞（网络抖动 / 模型答非所问）过一会儿再试一次
+                try:
+                    self.scheduler.fill_unknowns()
+                except Exception:
+                    log.debug("补洞失败，下轮再试", exc_info=True)
                 self._maybe_judge()
             except Exception:
                 log.error("分析异常：%s", traceback.format_exc(limit=2))
@@ -410,6 +415,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="列出最近 N 天里被判为「未识别」的窗口，用来补规则（默认 2 天）")
     p.add_argument("--suggest-rules", nargs="?", const=7, type=int, metavar="DAYS",
                    help="把模型补过的未知窗口归纳成候选规则（默认最近 7 天，只打印不写文件）")
+    p.add_argument("--fill-unknown", nargs="?", const=2, type=int, metavar="HOURS",
+                   help="把最近 N 小时仍为「未识别」的窗口重跑一遍（会再调一次模型，默认 2 小时）")
     p.add_argument("--reclassify", nargs="?", const="today", metavar="YYYY-MM-DD",
                    help="用当前规则重跑某天的分类（默认今天），历史时间块会更新")
     p.add_argument("--weekly", action="store_true", help="生成本周周报并打开")
@@ -461,6 +468,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.suggest_rules:
         store = Store()
         _cmd_suggest_rules(store, args.suggest_rules)
+        store.close()
+        return 0
+
+    if args.fill_unknown:
+        store = Store()
+        sched = Scheduler(cfg, store)
+        n = sched.fill_unknowns(hours=args.fill_unknown)
+        left = [b for b in store.blocks(day_of(time.time())) if b["category"] == "unknown"]
+        print(f"补洞：重跑 {n} 个窗口，今天还剩 {len(left)} 段未识别")
         store.close()
         return 0
 

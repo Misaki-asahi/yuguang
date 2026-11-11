@@ -116,6 +116,49 @@ class Scheduler:
         self.store.insert_analysis(f"{ws}-{we}", segs)
         return True
 
+    # ---------------------------------------------------------------- 补洞
+    def fill_unknowns(self, hours: int = 2, max_attempts: int = 2) -> int:
+        """把最近 hours 小时里仍是 unknown 的窗口重跑一遍（会再调一次模型）。
+
+        为什么要重试：批次里网络抖一下、模型答非所问一次，那个洞就永久留着了。
+        每个窗口最多试 max_attempts 次（记在 kv 表），避免反复烧调用。
+        """
+        if not self._vlm_allowed():
+            return 0
+
+        now = int(time.time())
+        day = day_of(now)
+        day_start, _ = self._bounds(day)
+        since = now - max(1, int(hours)) * 3600
+        # 只碰已经结束、且落在重试窗口内的未知段；正在跑的那一批不动
+        unknown = [b for b in self.store.blocks(day)
+                   if b["category"] == "unknown"
+                   and since <= int(b["end_ts"]) <= now - self.batch_sec]
+        if not unknown:
+            return 0
+
+        windows = sorted({
+            day_start + ((int(b["start_ts"]) - day_start) // self.batch_sec) * self.batch_sec
+            for b in unknown
+        })
+        done = 0
+        for ws in windows:
+            we = ws + self.batch_sec
+            key = f"filltry:{ws}"
+            tries = int(self.store.kv_get(key, 0) or 0)
+            if tries >= max_attempts:
+                continue
+            self.store.kv_set(key, tries + 1)
+            self.store._exec(
+                "DELETE FROM analysis WHERE start_ts >= ? AND start_ts < ?", (ws, we))
+            if self.process_window(ws, we):
+                done += 1
+
+        if done:
+            self.rebuild(day)
+            log.info("补洞：重跑 %d 个窗口（最近 %d 小时）", done, hours)
+        return done
+
     # ---------------------------------------------------------------- 段级合并
     @staticmethod
     def _fill_holes(segs: list[dict], out: list[dict]) -> list[dict]:
