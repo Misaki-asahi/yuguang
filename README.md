@@ -171,13 +171,9 @@ HANDOFF.md           项目交接：现状、坑、下一步
 
 ## 参与贡献
 
-欢迎 issue 和 PR。几条最常改的地方：
-
-- **分类规则不准** → 改 `focuspet/config/rules.yaml`，一条规则一个 id + 一句 note
-- **判定太吵 / 太安静** → 改 `focuspet/config.py` 里的 `judge` 默认值，并在 PR 里说明理由
-- **报表不好看** → 模板在 `focuspet/report/*.html`
-
-提交前请跑一次 `python -m focuspet --demo`，确认整条链路没断。
+想法来源于yv-bai。是本项目的思路提供者和重要参与者。
+桌宠来源于hunmer，上游归属 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)。
+欢迎 issue 和 PR。
 
 ---
 
