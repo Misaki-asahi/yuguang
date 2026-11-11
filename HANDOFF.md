@@ -184,6 +184,11 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 > 目标按**时刻**生效：`store.active_goal(ts)` 会比对 `started_ts`，声明之前的那几段
 > 不补判（`on_task` 为 NULL）。所以 `--reclassify` 历史日期时，下午才写的目标
 > 不会套到上午去——2026-11-09 修的就是这个。
+>
+> **目标类型**（`goal.kind`：work / study / leisure / life / auto，2026-11-11 加）决定
+> 「消耗类算不算跑偏」：study/leisure/life 下 `entertainment`（休闲类还含 `aimless`）
+> 不算跑偏——不提醒、`on_task=true`。`auto` 用目标文字猜（课程/网课/教程/复习/作业→学习），
+> 猜不出按 work 处理（保守）。**专注算法不变**：仍是 `deep_work + on_task + 单段 ≥25 分钟`。
 
 ---
 
