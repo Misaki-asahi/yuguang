@@ -27,6 +27,11 @@ rules:
     when: {proc: [Postman.exe, Apifox.exe, Insomnia.exe]}
     then: {category: deep_work, weight: 0.85, activity: 在调接口}
 
+  - id: app_github_desktop
+    note: GitHub Desktop 里看 diff / 提交，属于浅层工作（模型曾把它判成 system）
+    when: {proc: [GitHubDesktop.exe]}
+    then: {category: shallow_work, weight: 0.85, activity: 在 GitHub 上干活}
+
   - id: ai_workbench
     note: AI 编程/工作台类客户端，地位等同编辑器
     when: {proc: ["DeepSeek Harness.exe", DeepSeek.exe, CherryStudio.exe, "Cherry Studio.exe", Chatbox.exe, Windsurf.exe, Trae.exe, "Trae cn.exe"]}
@@ -36,6 +41,11 @@ rules:
     note: 浏览器里的 AI 助手，多数时候是查资料或干活
     when: {proc: [chrome.exe, msedge.exe, firefox.exe], title_contains: [ChatGPT, Claude, Gemini, DeepSeek, 通义, 文心一言, Kimi, 豆包]}
     then: {category: learning, weight: 0.6, activity: 在问 AI}
+
+  - id: ai_gemini_app
+    note: Gemini 桌面客户端，查资料/问 AI（模型曾把它判成「生活」）
+    when: {proc: [Gemini.exe]}
+    then: {category: learning, weight: 0.8, activity: 在问 AI}
 
   - id: desktop_toy
     note: 桌面挂件/宠物，纯背景程序，不算工作也不算摸鱼
