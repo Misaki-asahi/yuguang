@@ -108,7 +108,8 @@ def build_messages(cfg: dict, batch: dict) -> dict:
     return {
         "model": cfg["analyze"]["model"],
         "temperature": 0,
-        "max_tokens": 1200,
+        # 各家的上限不一样：智谱 GLM-4V-Flash 只允许 [1,1024]，写死 1200 会被 400 拒掉
+        "max_tokens": int(cfg["analyze"].get("max_tokens", 1024)),
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": content},
@@ -180,7 +181,11 @@ def validate(data: dict | None, win_start: int, win_end: int,
             continue
         st = int(datetime(day.year, day.month, day.day, h1, m1).timestamp())
         et = int(datetime(day.year, day.month, day.day, h2, m2).timestamp())
-        if not (win_start <= st < et <= win_end):
+        # 模型只精确到分钟，窗口边界常差几十秒；放 1 分钟容差，再裁回窗口内
+        if not (win_start - 60 <= st < et <= win_end + 60):
+            continue
+        st, et = max(st, win_start), min(et, win_end)
+        if st >= et:
             continue
         if not (s.get("evidence") or "").strip():
             continue

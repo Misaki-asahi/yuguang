@@ -49,6 +49,7 @@ DEFAULTS = {
         "api_key_env": "FOCUSPET_KEY",
         "min_confidence": 0.6,
         "daily_budget_cny": 2.0,
+        "max_tokens": 1024,         # 智谱 GLM-4V 系列上限就是 1024，写大了会被 400
         "retry": 2,
         "timeout_sec": 30,
     },
