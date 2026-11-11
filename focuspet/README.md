@@ -55,6 +55,7 @@ python -m focuspet --report --no-open    # 只要文件，不弹浏览器
 
 # 6) 规则调优：先看哪些窗口没认出来，补完再把历史数据重算一遍
 python -m focuspet --unknown 2           # 列出最近 2 天被判为「未识别」的窗口
+python -m focuspet --suggest-rules 7     # 模型补过的未知窗口 → 候选规则（只打印不写文件）
 python -m focuspet --reclassify          # 用当前规则重跑今天（也可指定日期）
 ```
 
@@ -201,6 +202,15 @@ analyze:
 
 本地模型（Ollama）同理，`endpoint` 填 `http://localhost:11434/v1`。
 没有配置时程序照常跑，只是所有段落都由规则产出、置信度偏低。
+
+**模型只补规则认不出的段**，不是整批重算：每个批次先跑规则，挑出 `unknown` 的段，
+只把这些段的采样和截图发过去，回来的结论只填进这些时间窗；规则已经认对的段
+原样保留。所以规则越准，模型调用越少——高覆盖率的批次几乎不花钱。
+
+模型给出的 `unknown` 结论还会落一张 `vlm_unknown` 表，攒够了可以用
+`--suggest-rules` 归纳成候选规则，确认后自己粘进 `config/rules.yaml`。
+候选规则的 `weight` 固定给 0.7（落在「规则 + 模型交叉验证」那一档），
+不会直接当成 0.9 的硬结论——误报比漏报贵。
 
 ---
 

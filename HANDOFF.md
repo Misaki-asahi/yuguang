@@ -101,7 +101,7 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 **已完成并实机验证：**
 
 - **采集**：ctypes 窗口探针（标题 / 进程 / PID，LRU 缓存）、`GetLastInputInfo` 空闲检测、mss 截图 1280 长边 + q70、dHash 汉明 ≤6 去重、黑屏（DRM）检测、SQLite WAL + 写失败落 jsonl + 启动回放
-- **分析**：46 条 YAML 规则（A 档，零成本）——浏览器教育站 / GitHub 仓库页与中文界面 / 余光自己的报表都单独成规则、OpenAI 协议视觉客户端（B 档，三道校验 + 重试 + 预算熔断）、A/B 档切换（规则覆盖率 ≥75% 就不花钱）。**批次窗口分两种**：没配模型时按 1 分钟一批（纯规则零成本，概览/日报才不至于等 15 分钟还是 0）；配了模型才是 15 分钟一批
+- **分析**：46 条 YAML 规则（A 档，零成本）——浏览器教育站 / GitHub 仓库页与中文界面 / 余光自己的报表都单独成规则、OpenAI 协议视觉客户端（B 档，三道校验 + 重试 + 预算熔断）。**B 档只补 A 档认不出的段**：每批先跑规则，挑出 `unknown` 段，只把这些段的采样/截图发给模型，回来的结论只填这些时间窗，已知段原样保留（不再整批替换）。模型判过的未知窗口落 `vlm_unknown` 表，`--suggest-rules` 归纳成候选规则（weight 固定 0.7，人工确认后再进 `config/rules.yaml`）。**批次窗口分两种**：没配模型时按 1 分钟一批（纯规则零成本，概览/日报才不至于等 15 分钟还是 0）；配了模型才是 15 分钟一批
 - **聚合**：段合并（gap 180s / min_len 60s，deep_work 与 learning 视为同类）、灰段补洞、五项指标、文案模板
 - **判定**：全否才退出的判定链；L1→L2→L3 按 2/3 分钟升级；冷却与日上限；同一段离题的升级不被冷却挡住
 - **周报/月报**（`report/summary.py`）：每周日 21:00、每月最后一天 21:00 自动出，读 `block` 表汇总（清明细/截图不影响历史）；含每日柱状图、分类占比、逐日明细、与上周期对比；`--weekly` / `--monthly` 可手动生成，同周期覆盖同一文件
@@ -274,6 +274,8 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 程序已经在跑时 `--once` / `--duration` 不采集，只弹面板 | `main()` 里单实例锁在 `--once` 之前就抢了，抢不到就 `ipc.request_show()` 然后退出 | 想验采集：先退出常驻实例，或直接看 `data/logs/focuspet.log` 里「完成 N 个批次」有没有在走 |
 | 报错里的路径显示成 `withϯ` | GBK 控制台的显示问题，文件本身正常 | 用 `read` / `read_image` 验证，别当成路径损坏 |
 | 双击 `启动余光.bat` 毫无反应，程序不起来 | `.bat` 被存成了 UTF-8（含中文注释、LF 换行），cmd 按 GBK 解析时整行错位，`start` 直接失败；pythonw 又没有控制台，看不到任何报错 | `.bat` 必须**纯 ASCII + CRLF**，注释也只写英文；工作目录用 `pushd` 传，别写 `start /d "路径\"`（结尾反斜杠会吃掉引号）。两个 bat 已按此重写 |
+| 配好模型后每批都报 `HTTP 400 ... max_tokens 超出范围 [1,1024]` | 智谱 GLM-4V 系列把 `max_tokens` 硬限在 1024，代码原来写死 1200 | 已改成读 `analyze.max_tokens`（默认 1024）；换别家模型可以调大 |
+| 模型返回的 JSON 明明合法，却报「输出无法通过校验」 | 模型只精确到分钟，段起点会比窗口起点早几十秒，旧校验要求 `st >= win_start` 直接把整段丢掉 | 已给 1 分钟容差并裁回窗口（`vlm.validate`）；改时间窗逻辑时别再收紧回去 |
 
 ---
 
@@ -282,7 +284,7 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 **文档侧没有半成品；代码侧 M0–M4 已可日常用，M5 做了一半。** 按性价比排序：
 
 1. **继续跑，用真实数据打磨规则**（最该做的）—— 每天看日报，分类错了补 `config/rules.yaml`，指标口径不对改 `aggregate.py`
-2. **配视觉模型** —— 现在完全走规则（40 条覆盖约 80%）；配好后 B 档才启用（`FOCUSPET_KEY` + `analyze.endpoint/model`）。注意：配了模型批次会从 1 分钟回到 15 分钟
+2. ~~**配视觉模型**~~ —— **2026-11-11 已配**：智谱 `glm-4v-flash`（免费），`FOCUSPET_KEY` 已写进用户环境变量，配置见 `analyze.endpoint/model`。`max_tokens` 只能 ≤1024（写大会被 400）。现在模型只补规则认不出的段，规则越准调用越少；攒几天后用 `--suggest-rules 7` 看候选规则
 3. **GitHub 协作铺开** —— 分支保护规则、加协作者、GitHub Actions 跑 `--demo` 冒烟测试（Linux runner 上可行，demo 不依赖 Windows）
 4. **金标集 100 条** —— 11.7 说的那个本子，是判断「改规则后变好还是变坏」的唯一依据
 5. **M4 收尾** —— 托盘里「开始专注 / 休息」的闭环、日报上的纠错入口（`judge/learn.py` 已有能力，缺 UI）
