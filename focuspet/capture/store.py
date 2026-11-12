@@ -301,6 +301,29 @@ class Store:
                 "SELECT * FROM analysis WHERE date = ? ORDER BY start_ts", (day,)
             ))
 
+    def analysis_window(self, ws: int, we: int) -> list[sqlite3.Row]:
+        """某个批次窗口里的分析行（补洞前后对比用）。"""
+        with self._lock:
+            return list(self.conn.execute(
+                "SELECT * FROM analysis WHERE start_ts >= ? AND start_ts < ?"
+                " ORDER BY start_ts", (int(ws), int(we))))
+
+    def restore_analysis(self, ws: int, we: int, rows: list) -> None:
+        """把窗口里的分析行整体换回旧的那份（补洞没变好时回滚）。"""
+        with self._lock:
+            self.conn.execute(
+                "DELETE FROM analysis WHERE start_ts >= ? AND start_ts < ?",
+                (int(ws), int(we)))
+            for r in rows:
+                self.conn.execute(
+                    "INSERT INTO analysis(batch_id, date, start_ts, end_ts, activity, category,"
+                    " on_task, confidence, evidence, source, created_ts)"
+                    " VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (r["batch_id"], r["date"], r["start_ts"], r["end_ts"], r["activity"],
+                     r["category"], r["on_task"], r["confidence"], r["evidence"],
+                     r["source"], r["created_ts"]))
+            self.conn.commit()
+
     def last_batch_end(self) -> int:
         with self._lock:
             row = self.conn.execute("SELECT MAX(end_ts) m FROM analysis").fetchone()

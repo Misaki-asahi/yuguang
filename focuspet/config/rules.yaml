@@ -52,6 +52,11 @@ rules:
     when: {proc: [BongoCat.exe]}
     then: {category: system, weight: 0.6, activity: 桌面挂件}
 
+  - id: game_launcher
+    note: 游戏启动器（鸣潮等）；模型对它的判断不稳定，直接按娱乐算
+    when: {proc: [launcher_main.exe]}
+    then: {category: entertainment, weight: 0.85, activity: 在玩游戏}
+
   # ---------------------------------------------------------------- 办公
   - id: office_doc
     note: 文档、表格、演示，写作类深度工作

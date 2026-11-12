@@ -23,6 +23,12 @@ def _in_ranges(ts: int, ranges: list[dict]) -> bool:
     return any(int(r["start_ts"]) <= ts < int(r["end_ts"]) for r in ranges)
 
 
+def _unknown_minutes(rows: list) -> float:
+    """一批分析行里「unknown」占多少分钟——补洞前后比这个，比数段数靠谱。"""
+    return sum(int(r["end_ts"]) - int(r["start_ts"])
+               for r in rows if r["category"] == "unknown") / 60.0
+
+
 class Scheduler:
     def __init__(self, cfg: dict, store, ruleset: RuleSet | None = None):
         self.cfg = cfg
@@ -117,11 +123,13 @@ class Scheduler:
         return True
 
     # ---------------------------------------------------------------- 补洞
-    def fill_unknowns(self, hours: int = 2, max_attempts: int = 2) -> int:
+    def fill_unknowns(self, hours: int = 2, max_attempts: int = 3,
+                      force: bool = False) -> int:
         """把最近 hours 小时里仍是 unknown 的窗口重跑一遍（会再调一次模型）。
 
         为什么要重试：批次里网络抖一下、模型答非所问一次，那个洞就永久留着了。
-        每个窗口最多试 max_attempts 次（记在 kv 表），避免反复烧调用。
+        每个窗口最多试 max_attempts 次（记在 kv 表），避免反复烧调用；
+        force=True 给手动 `--fill-unknown` 用，不受次数限制。
         """
         if not self._vlm_allowed():
             return 0
@@ -146,13 +154,25 @@ class Scheduler:
             we = ws + self.batch_sec
             key = f"filltry:{ws}"
             tries = int(self.store.kv_get(key, 0) or 0)
-            if tries >= max_attempts:
+            if not force and tries >= max_attempts:
                 continue
+            # 先留一份旧的：重跑如果没变好（unknown 没减少），就回滚，
+            # 不能因为这次模型又抽风，把上次补对的结果冲掉
+            before = self.store.analysis_window(ws, we)
+            before_unknown = _unknown_minutes(before)
             self.store.kv_set(key, tries + 1)
             self.store._exec(
                 "DELETE FROM analysis WHERE start_ts >= ? AND start_ts < ?", (ws, we))
-            if self.process_window(ws, we):
-                done += 1
+            if not self.process_window(ws, we):
+                continue
+            after = self.store.analysis_window(ws, we)
+            after_unknown = _unknown_minutes(after)
+            if before and after_unknown >= before_unknown:
+                self.store.restore_analysis(ws, we, before)
+                log.info("补洞没变好（unknown %.0f→%.0f 分钟），保留原结果",
+                         before_unknown, after_unknown)
+                continue
+            done += 1
 
         if done:
             self.rebuild(day)

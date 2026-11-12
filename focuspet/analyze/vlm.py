@@ -173,6 +173,9 @@ def parse_json(text: str) -> dict | None:
 def validate(data: dict | None, win_start: int, win_end: int,
              min_conf: float = 0.6) -> list[dict]:
     """三道校验，任何一道不过就当解析失败，绝不尽力猜（11.4）。"""
+    # 模型偶尔直接吐一个数组而不是 {"segments": [...]}，这里兼容一下
+    if isinstance(data, list):
+        data = {"segments": data}
     if not isinstance(data, dict) or not isinstance(data.get("segments"), list):
         return []
     day = datetime.fromtimestamp(win_start).date()

@@ -493,7 +493,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.fill_unknown:
         store = Store()
         sched = Scheduler(cfg, store)
-        n = sched.fill_unknowns(hours=args.fill_unknown)
+        n = sched.fill_unknowns(hours=args.fill_unknown, force=True)
         left = [b for b in store.blocks(day_of(time.time())) if b["category"] == "unknown"]
         print(f"补洞：重跑 {n} 个窗口，今天还剩 {len(left)} 段未识别")
         store.close()

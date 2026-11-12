@@ -281,6 +281,8 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 双击 `启动余光.bat` 毫无反应，程序不起来 | `.bat` 被存成了 UTF-8（含中文注释、LF 换行），cmd 按 GBK 解析时整行错位，`start` 直接失败；pythonw 又没有控制台，看不到任何报错 | `.bat` 必须**纯 ASCII + CRLF**，注释也只写英文；工作目录用 `pushd` 传，别写 `start /d "路径\"`（结尾反斜杠会吃掉引号）。两个 bat 已按此重写 |
 | 配好模型后每批都报 `HTTP 400 ... max_tokens 超出范围 [1,1024]` | 智谱 GLM-4V 系列把 `max_tokens` 硬限在 1024，代码原来写死 1200 | 已改成读 `analyze.max_tokens`（默认 1024）；换别家模型可以调大 |
 | 模型返回的 JSON 明明合法，却报「输出无法通过校验」 | 模型只精确到分钟，段起点会比窗口起点早几十秒，旧校验要求 `st >= win_start` 直接把整段丢掉 | 已给 1 分钟容差并裁回窗口（`vlm.validate`）；改时间窗逻辑时别再收紧回去 |
+| 模型偶尔直接吐 `[{...}]` 数组，不包 `{"segments": [...]}` | 免费模型不总守格式，旧校验只认对象，整批判失败 → 降级成 unknown | 已兼容裸数组（`validate` 开头把 list 包成 dict）；再遇到格式问题先看 `vlm.parse_json` 的原文 |
+| 补洞重跑之后反而更糟、unknown 变多 | `fill_unknowns` 是「先删再跑」，模型这轮抽风就把上次补对的一起冲掉 | 已加回滚：重跑后 unknown 分钟数没减少就恢复旧行（`restore_analysis`）；手动 `--fill-unknown` 用 `force=True` 不受次数限制 |
 
 ---
 
