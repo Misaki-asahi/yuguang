@@ -187,6 +187,8 @@ class App:
                 now = time.localtime()
                 if (now.tm_hour, now.tm_min) >= (hh, mm) and self._last_report_day != day:
                     from .report.render import render_day
+                    # 出日报前先让模型复核一遍：低置信度重判 + 规则巡检 + 目标匹配
+                    self._auto_review(day)
                     path = render_day(self.cfg, self.store, day)
                     self._last_report_day = day
                     log.info("日报完成：%s", path)
@@ -230,6 +232,23 @@ class App:
             bridge.push(-2, f"{title}｜{text}")
         else:
             log.info("通知：%s｜%s", title, text)
+
+    def _auto_review(self, day: str) -> None:
+        """出日报前让模型复核一遍：低置信度重判、规则巡检、目标语义匹配。
+
+        全部只改统计口径，失败就跳过，绝不让它挡住日报生成。
+        """
+        a = self.cfg["analyze"]
+        if not a.get("auto_review", True):
+            return
+        try:
+            self.scheduler.review_low_confidence(
+                day, limit=int(a.get("review_limit", 12)))
+            self.scheduler.inspect_rules(
+                day, samples=int(a.get("rule_check_samples", 2)))
+            self.scheduler.match_goal(day)
+        except Exception:
+            log.debug("自动复核失败（不影响日报）", exc_info=True)
 
     def _digest(self, day: str) -> str:
         """日报生成后给通知用的一行摘要。"""
@@ -436,6 +455,12 @@ def build_parser() -> argparse.ArgumentParser:
                    help="把模型补过的未知窗口归纳成候选规则（默认最近 7 天，只打印不写文件）")
     p.add_argument("--fill-unknown", nargs="?", const=2, type=int, metavar="HOURS",
                    help="把最近 N 小时仍为「未识别」的窗口重跑一遍（会再调一次模型，默认 2 小时）")
+    p.add_argument("--review", nargs="?", const="today", metavar="DATE",
+                   help="把当天低置信度（<0.6）的段交给模型重判（默认今天）")
+    p.add_argument("--rule-check", nargs="?", const="today", metavar="DATE",
+                   help="抽几段「规则很自信」的段让模型复核，冲突只记录不改")
+    p.add_argument("--match-goal", nargs="?", const="today", metavar="DATE",
+                   help="让模型按今日目标重判各时间块的 on_task")
     p.add_argument("--reclassify", nargs="?", const="today", metavar="YYYY-MM-DD",
                    help="用当前规则重跑某天的分类（默认今天），历史时间块会更新")
     p.add_argument("--weekly", action="store_true", help="生成本周周报并打开")
@@ -496,6 +521,20 @@ def main(argv: list[str] | None = None) -> int:
         n = sched.fill_unknowns(hours=args.fill_unknown, force=True)
         left = [b for b in store.blocks(day_of(time.time())) if b["category"] == "unknown"]
         print(f"补洞：重跑 {n} 个窗口，今天还剩 {len(left)} 段未识别")
+        store.close()
+        return 0
+
+    if args.review or args.rule_check or args.match_goal:
+        store = Store()
+        sched = Scheduler(cfg, store)
+        raw = args.review or args.rule_check or args.match_goal
+        day = day_of(time.time()) if raw == "today" else raw
+        if args.review:
+            print(f"低置信度复核：改了 {sched.review_low_confidence(day)} 段")
+        if args.rule_check:
+            print(f"规则巡检：发现 {sched.inspect_rules(day)} 处冲突")
+        if args.match_goal:
+            print(f"目标匹配：更新了 {sched.match_goal(day)} 个时间块")
         store.close()
         return 0
 

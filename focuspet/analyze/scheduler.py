@@ -29,6 +29,16 @@ def _unknown_minutes(rows: list) -> float:
                for r in rows if r["category"] == "unknown") / 60.0
 
 
+def _overlap(seg: dict, block: dict) -> int:
+    return max(0, min(int(seg["end_ts"]), int(block["end_ts"]))
+               - max(int(seg["start_ts"]), int(block["start_ts"])))
+
+
+def _overlap_ratio(seg: dict, block: dict) -> float:
+    dur = max(1, int(block["end_ts"]) - int(block["start_ts"]))
+    return _overlap(seg, block) / dur
+
+
 class Scheduler:
     def __init__(self, cfg: dict, store, ruleset: RuleSet | None = None):
         self.cfg = cfg
@@ -178,6 +188,124 @@ class Scheduler:
             self.rebuild(day)
             log.info("补洞：重跑 %d 个窗口（最近 %d 小时）", done, hours)
         return done
+
+    # ---------------------------------------------------------------- 复核
+    def review_low_confidence(self, day: str, limit: int = 12) -> int:
+        """把今天低置信度（<0.6）的段送模型重判，有把握就改。
+
+        只影响统计与日报——已经弹过的提醒不会因此回头改。
+        unknown 不在这里处理，那是 fill_unknowns 的活。
+        """
+        if not self._vlm_allowed():
+            return 0
+        rows = [dict(b) for b in self.store.blocks(day)
+                if b["category"] not in ("gap", "unknown")
+                and float(b["confidence"] or 0) < 0.6]
+        changed = 0
+        for b in rows[:max(1, int(limit))]:
+            samples = self.store.samples(b["start_ts"], b["end_ts"])
+            if not samples:
+                continue
+            batch = self._build_batch(b["start_ts"], b["end_ts"], samples)
+            if not batch or not batch["frames"]:
+                continue
+            out, err = vlm.analyze(self.cfg, batch)
+            if not out:
+                log.debug("复核失败（%s），跳过", err)
+                continue
+            best = max(out, key=lambda s: _overlap(s, b))
+            if _overlap_ratio(best, b) < 0.5 or float(best["confidence"]) < 0.7:
+                continue
+            if best["category"] == b["category"]:
+                continue
+            # 不让模型把「工作/学习」降级成「生活/系统」：那两个类别信息量最低，
+            # 模型看不清截图时就爱填它们，会把好好的工作段吃掉（实测踩过）
+            if b["category"] in ("deep_work", "shallow_work", "learning") \
+                    and best["category"] in ("life", "system"):
+                log.debug("复核忽略降级：%s → %s", b["category"], best["category"])
+                continue
+            self.store.set_block_category(b["id"], best["category"])
+            self.store._exec(
+                "INSERT INTO vlm_review(day, block_id, old_cat, new_cat, confidence, ts)"
+                " VALUES(?,?,?,?,?,?)",
+                (day, b["id"], b["category"], best["category"],
+                 float(best["confidence"]), int(time.time())))
+            changed += 1
+            time.sleep(1.2)             # 别把免费额度打满
+        if changed:
+            log.info("低置信度复核：改了 %d 段", changed)
+        return changed
+
+    def inspect_rules(self, day: str, samples: int = 3) -> int:
+        """抽几段「规则很自信」的段让模型复核，冲突只记录、不自动改。"""
+        if not self._vlm_allowed():
+            return 0
+        rows = [dict(b) for b in self.store.blocks(day)
+                if b["category"] not in ("gap", "unknown")
+                and float(b["confidence"] or 0) >= 0.9]
+        if not rows:
+            return 0
+        step = max(1, len(rows) // max(1, int(samples)))
+        picked = rows[::step][:max(1, int(samples))]
+        found = 0
+        for b in picked:
+            segs = self.store.samples(b["start_ts"], b["end_ts"])
+            if not segs:
+                continue
+            batch = self._build_batch(b["start_ts"], b["end_ts"], segs)
+            if not batch or not batch["frames"]:
+                continue
+            out, err = vlm.analyze(self.cfg, batch)
+            if not out:
+                continue
+            best = max(out, key=lambda s: _overlap(s, b))
+            if _overlap_ratio(best, b) < 0.5 or float(best["confidence"]) < 0.8:
+                continue
+            if best["category"] == b["category"]:
+                continue
+            proc, title, _ = self.store.dominant_window(b["start_ts"], b["end_ts"])
+            self.store._exec(
+                "INSERT INTO rule_conflict(day, block_id, rule_cat, model_cat, proc, title,"
+                " confidence, ts) VALUES(?,?,?,?,?,?,?,?)",
+                (day, b["id"], b["category"], best["category"], proc, title,
+                 float(best["confidence"]), int(time.time())))
+            found += 1
+            time.sleep(1.2)
+        if found:
+            log.info("规则巡检：发现 %d 处规则与模型结论不一致", found)
+        return found
+
+    # ---------------------------------------------------------------- 目标匹配
+    def match_goal(self, day: str) -> int:
+        """让模型按「今天的目标」重新判断各时间块的 on_task。
+
+        规则模式的 on_task 是按类别推断的，读不懂语义；这一步用纯文本补上。
+        只改统计口径，不影响已经发生的提醒。
+        """
+        if not self._vlm_allowed():
+            return 0
+        from datetime import datetime
+        goal = self.store.goal_of_day(day)
+        if not goal:
+            log.info("目标匹配跳过：当天没有声明目标")
+            return 0
+        blocks = [dict(b) for b in self.store.blocks(day) if b["category"] != "gap"]
+        if not blocks:
+            return 0
+        # 一次只发十几块：免费模型的 max_tokens=1024，块多了 JSON 会被截断
+        chunk = max(4, int(self.cfg["analyze"].get("goal_chunk", 12)))
+        n = 0
+        for i in range(0, len(blocks), chunk):
+            part = blocks[i:i + chunk]
+            out, err = vlm.match_goal(self.cfg, day, goal["text"], part)
+            if not out:
+                continue
+            for s in out:
+                n += self.store.set_block_on_task(s["start_ts"], s["end_ts"], s["on_task"])
+            time.sleep(1.0)
+        if n:
+            log.info("目标匹配：更新 %d 个时间块的 on_task", n)
+        return n
 
     # ---------------------------------------------------------------- 段级合并
     @staticmethod

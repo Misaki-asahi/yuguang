@@ -50,6 +50,9 @@ DEFAULTS = {
         "min_confidence": 0.6,
         "daily_budget_cny": 2.0,
         "max_tokens": 1024,         # 智谱 GLM-4V 系列上限就是 1024，写大了会被 400
+        "auto_review": True,        # 出日报前自动做一次模型复核/匹配
+        "review_limit": 12,         # 低置信度复核每次最多几段
+        "rule_check_samples": 2,    # 规则巡检每次抽几段
         "retry": 2,
         "timeout_sec": 30,
     },

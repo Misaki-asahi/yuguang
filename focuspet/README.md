@@ -57,6 +57,9 @@ python -m focuspet --report --no-open    # 只要文件，不弹浏览器
 python -m focuspet --unknown 2           # 列出最近 2 天被判为「未识别」的窗口
 python -m focuspet --suggest-rules 7     # 模型补过的未知窗口 → 候选规则（只打印不写文件）
 python -m focuspet --fill-unknown 2      # 把最近 2 小时仍为「未识别」的窗口重跑一遍（再调一次模型）
+python -m focuspet --review              # 低置信度（<0.6）的段交模型重判
+python -m focuspet --rule-check          # 抽几段规则很自信的段复核，冲突只记录
+python -m focuspet --match-goal          # 按今日目标重判各时间块的 on_task
 python -m focuspet --reclassify          # 用当前规则重跑今天（也可指定日期）
 ```
 
@@ -91,7 +94,7 @@ python -m focuspet --panel      # 启动并打开控制面板；已在运行则�
 ```
 
 面板里能做的事：看今日数字、声明目标（改过之后按钮变成「点击更换目标」，旁边可以选**目标类型**）、打开今日日报 / 本周周报 / 本月月报、
-桌宠显示层级（始终置顶 / 只在桌面显示 / 不显示）、暂停采集、开关开机自启、改日报生成时间、退出。
+桌宠显示层级（始终置顶 / 只在桌面显示 / 不显示）、**纠错…**（把判错的段改对，可顺手固化成规则）、暂停采集、开关开机自启、改日报生成时间、退出。
 
 **目标类型**（工作 / 学习 / 休闲 / 生活 / 自动）决定「消耗类算不算跑偏」：目标是
 「看完机器学习第 3 讲」时，看视频不该被当成摸鱼——选「学习」它就不会提醒；

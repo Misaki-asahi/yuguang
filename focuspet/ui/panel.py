@@ -113,8 +113,11 @@ class ControlPanel(QWidget):
         self.btn_pause.clicked.connect(self._toggle_pause)
         b_settings = QPushButton("设置…")
         b_settings.clicked.connect(self._open_settings)
+        b_fix = QPushButton("纠错…")
+        b_fix.clicked.connect(self._open_fix)
         row2.addWidget(self.btn_pause)
         row2.addWidget(b_settings)
+        row2.addWidget(b_fix)
         root.addLayout(row2)
 
         # 桌宠的显示层级：始终置顶 / 只在桌面显示 / 不显示
@@ -297,6 +300,12 @@ class ControlPanel(QWidget):
         dlg = SettingsDialog(self.app.cfg, self)
         if dlg.exec():
             dlg.apply()
+
+    def _open_fix(self) -> None:
+        from .fix import FixDialog
+        dlg = FixDialog(self.app, self)
+        dlg.exec()
+        self.refresh()
 
     def _toggle_autostart(self) -> None:
         try:

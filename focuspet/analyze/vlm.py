@@ -235,3 +235,73 @@ def analyze(cfg: dict, batch: dict) -> tuple[list[dict] | None, str | None]:
         err = "模型输出无法通过校验"
         log.warning("%s（第 %d 次），原文前 120 字：%s", err, attempt + 1, text[:120])
     return None, err
+
+
+# ---------------------------------------------------------------- 目标语义匹配
+GOAL_SYSTEM = """你是时间账单核对助手。给你用户今天声明的目标和一组时间块，
+判断每个时间块是否真的服务于这个目标。
+
+规则：
+1. 只判断有明确证据的块；拿不准的不要输出，宁缺毋滥。
+2. on_task 只能是 true 或 false。
+3. 时间用 HH:MM，必须落在当天 00:00–23:59，start 小于 end。
+4. 一次最多输出 15 条，多出来的块直接省略（输出有长度限制）。
+5. 只输出 JSON，不要解释、不要 Markdown 代码块标记。
+
+输出格式（严格）：
+{"segments":[{"start":"09:30","end":"09:40","on_task":true}]}"""
+
+
+def match_goal(cfg: dict, day: str, goal_text: str,
+               blocks: list[dict]) -> tuple[list[dict] | None, str | None]:
+    """纯文本调用：让模型按目标给每个时间块判 on_task（不传图，省额度）。"""
+    from datetime import datetime
+
+    lines = []
+    for b in blocks:
+        start = datetime.fromtimestamp(int(b["start_ts"])).strftime("%H:%M")
+        end = datetime.fromtimestamp(int(b["end_ts"])).strftime("%H:%M")
+        cat = b.get("category", "")
+        act = (b.get("activity") or "")[:24]
+        lines.append(f"{start}-{end}  {cat}：{act}")
+    if not lines:
+        return None, "没有时间块"
+    user = (f"【今日目标】\n{goal_text}\n\n【时间块】\n" + "\n".join(lines)
+            + "\n\n请判断每个块是否服务于目标，输出 JSON。")
+    payload = {
+        "model": cfg["analyze"]["model"],
+        "temperature": 0,
+        "max_tokens": int(cfg["analyze"].get("max_tokens", 1024)),
+        "messages": [
+            {"role": "system", "content": GOAL_SYSTEM},
+            {"role": "user", "content": [{"type": "text", "text": user}]},
+        ],
+    }
+    text, err = _post(cfg, payload)
+    if text is None:
+        return None, err
+    data = parse_json(text)
+    if isinstance(data, dict):
+        segs = data.get("segments")
+    elif isinstance(data, list):
+        segs = data
+    else:
+        segs = None
+    if not isinstance(segs, list):
+        log.warning("目标匹配输出无法解析，原文前 200 字：%s", text[:200])
+        return None, "输出无法解析"
+
+    base = datetime.strptime(day, "%Y-%m-%d")
+    out = []
+    for s in segs:
+        try:
+            h1, m1 = (int(x) for x in str(s["start"]).split(":")[:2])
+            h2, m2 = (int(x) for x in str(s["end"]).split(":")[:2])
+            st = int(base.replace(hour=h1, minute=m1).timestamp())
+            et = int(base.replace(hour=h2, minute=m2).timestamp())
+        except Exception:
+            continue
+        if st >= et or "on_task" not in s:
+            continue
+        out.append({"start_ts": st, "end_ts": et, "on_task": bool(s["on_task"])})
+    return out or None, None

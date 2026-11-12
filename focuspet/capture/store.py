@@ -108,6 +108,28 @@ CREATE TABLE IF NOT EXISTS vlm_unknown (
   activity   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_vlm_unknown_day ON vlm_unknown(day);
+
+CREATE TABLE IF NOT EXISTS vlm_review (
+  id         INTEGER PRIMARY KEY,
+  day        TEXT NOT NULL,
+  block_id   INTEGER,
+  old_cat    TEXT,
+  new_cat    TEXT,
+  confidence REAL,
+  ts         INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS rule_conflict (
+  id         INTEGER PRIMARY KEY,
+  day        TEXT NOT NULL,
+  block_id   INTEGER,
+  rule_cat   TEXT,
+  model_cat  TEXT,
+  proc       TEXT,
+  title      TEXT,
+  confidence REAL,
+  ts         INTEGER
+);
 """
 
 
@@ -349,6 +371,52 @@ class Store:
                 "SELECT * FROM block WHERE date = ? ORDER BY start_ts", (day,)
             ))
 
+    def set_block_category(self, block_id: int, category: str) -> None:
+        """改一个时间块的分类（同时把它覆盖的 analysis 行一起改，否则下次 rebuild 会抹掉）。"""
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT start_ts, end_ts FROM block WHERE id=?", (int(block_id),)).fetchone()
+            if row is None:
+                return
+            self.conn.execute("UPDATE block SET category=? WHERE id=?",
+                              (category, int(block_id)))
+            self.conn.execute(
+                "UPDATE analysis SET category=? WHERE start_ts>=? AND start_ts<?",
+                (category, int(row["start_ts"]), int(row["end_ts"])))
+            self.conn.commit()
+
+    def set_analysis_category(self, start_ts: int, end_ts: int, category: str) -> None:
+        with self._lock:
+            self.conn.execute(
+                "UPDATE analysis SET category=? WHERE start_ts>=? AND start_ts<?",
+                (category, int(start_ts), int(end_ts)))
+            self.conn.commit()
+
+    def set_block_on_task(self, start_ts: int, end_ts: int, on_task: bool) -> int:
+        """目标语义匹配用：把某段时间块的 on_task 改成模型判断的结果。"""
+        with self._lock:
+            cur = self.conn.execute(
+                "UPDATE block SET on_task=? WHERE start_ts>=? AND start_ts<?",
+                (1 if on_task else 0, int(start_ts), int(end_ts)))
+            self.conn.execute(
+                "UPDATE analysis SET on_task=? WHERE start_ts>=? AND start_ts<?",
+                (1 if on_task else 0, int(start_ts), int(end_ts)))
+            self.conn.commit()
+            return cur.rowcount
+
+    def dominant_window(self, start_ts: int, end_ts: int) -> tuple[str, str, int]:
+        """这段时间里出现最多的 (进程, 标题, 次数)——纠错生成规则用。"""
+        with self._lock:
+            rows = list(self.conn.execute(
+                "SELECT proc, title, COUNT(*) c FROM sample"
+                " WHERE ts>=? AND ts<? AND proc IS NOT NULL AND proc<>''"
+                " GROUP BY proc, title ORDER BY c DESC LIMIT 1",
+                (int(start_ts), int(end_ts))))
+        if not rows:
+            return "", "", 0
+        r = rows[0]
+        return (r["proc"] or ""), (r["title"] or ""), int(r["c"])
+
     # ------------------------------------------------------------ goal
     def set_goal(self, text: str, ts: int | None = None, kind: str = "auto") -> int:
         ts = int(ts or time.time())
@@ -370,6 +438,13 @@ class Store:
                 "SELECT text FROM goal WHERE date < ? ORDER BY id DESC LIMIT 1",
                 (day,)).fetchone()
         return row["text"] if row else ""
+
+    def goal_of_day(self, day: str) -> sqlite3.Row | None:
+        """当天最后声明的那条目标（不管几点声明）——目标语义匹配用它。"""
+        with self._lock:
+            return self.conn.execute(
+                "SELECT * FROM goal WHERE date=? ORDER BY started_ts DESC, id DESC LIMIT 1",
+                (day,)).fetchone()
 
     def active_goal(self, ts: int | None = None) -> sqlite3.Row | None:
         """ts 这一刻生效的目标；不给 ts 就是「现在」。

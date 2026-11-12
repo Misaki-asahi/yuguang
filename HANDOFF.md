@@ -101,7 +101,9 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 **已完成并实机验证：**
 
 - **采集**：ctypes 窗口探针（标题 / 进程 / PID，LRU 缓存）、`GetLastInputInfo` 空闲检测、mss 截图 1280 长边 + q70、dHash 汉明 ≤6 去重、黑屏（DRM）检测、SQLite WAL + 写失败落 jsonl + 启动回放
-- **分析**：46 条 YAML 规则（A 档，零成本）——浏览器教育站 / GitHub 仓库页与中文界面 / 余光自己的报表都单独成规则、OpenAI 协议视觉客户端（B 档，三道校验 + 重试 + 预算熔断）。**B 档只补 A 档认不出的段**：每批先跑规则，挑出 `unknown` 段，只把这些段的采样/截图发给模型，回来的结论只填这些时间窗，已知段原样保留（不再整批替换）。模型判过的未知窗口落 `vlm_unknown` 表，`--suggest-rules` 归纳成候选规则（weight 固定 0.7，人工确认后再进 `config/rules.yaml`）。**补不上的洞会自动重试**：`Scheduler.fill_unknowns()` 在分析线程里每分钟检查最近 2 小时的 `unknown` 段，重跑对应窗口（每窗最多 2 次，计数在 kv 表 `filltry:<ws>`），也可以手动 `--fill-unknown N`。**批次窗口分两种**：没配模型时按 1 分钟一批（纯规则零成本，概览/日报才不至于等 15 分钟还是 0）；配了模型才是 15 分钟一批
+- **分析**：46 条 YAML 规则（A 档，零成本）——浏览器教育站 / GitHub 仓库页与中文界面 / 余光自己的报表都单独成规则、OpenAI 协议视觉客户端（B 档，三道校验 + 重试 + 预算熔断）。**B 档只补 A 档认不出的段**：每批先跑规则，挑出 `unknown` 段，只把这些段的采样/截图发给模型，回来的结论只填这些时间窗，已知段原样保留（不再整批替换）。模型判过的未知窗口落 `vlm_unknown` 表，`--suggest-rules` 归纳成候选规则（weight 固定 0.7，人工确认后再进 `config/rules.yaml`）。**补不上的洞会自动重试**：`Scheduler.fill_unknowns()` 在分析线程里每分钟检查最近 2 小时的 `unknown` 段，重跑对应窗口（每窗最多 3 次，计数在 kv 表 `filltry:<ws>`），也可以手动 `--fill-unknown N`。
+
+**出日报前会自动跑三件事**（`App._auto_review`，失败不影响报表）：`review_low_confidence`（低置信度 <0.6 的段交模型重判；不许把工作/学习降级成 life/system）、`inspect_rules`（抽几段高置信度段复核，冲突写 `rule_conflict` 表、只记录不改）、`match_goal`（按当日目标重判 on_task，纯文本调用、按 12 块分片）。手动入口：`--review` / `--rule-check` / `--match-goal`。**人工纠错**在控制面板的「纠错…」对话框里：改分类 + 可勾选「加规则」（写进 `rules.yaml`，`learned_*` 前缀）。**批次窗口分两种**：没配模型时按 1 分钟一批（纯规则零成本，概览/日报才不至于等 15 分钟还是 0）；配了模型才是 15 分钟一批
 - **聚合**：段合并（gap 180s / min_len 60s，deep_work 与 learning 视为同类）、灰段补洞、五项指标、文案模板
 - **判定**：全否才退出的判定链；L1→L2→L3 按 2/3 分钟升级；冷却与日上限；同一段离题的升级不被冷却挡住
 - **周报/月报**（`report/summary.py`）：**跟日报同一时间出**（都读 `report.time`，不再用 `weekly_time`/`monthly_time`；周日出周报、月末出月报），读 `block` 表汇总（清明细/截图不影响历史）；含每日柱状图、分类占比、逐日明细、与上周期对比；`--weekly` / `--monthly` 可手动生成，同周期覆盖同一文件。**出完会发系统通知**（托盘气泡：`App.notify()` → `bridge.push(-2, …)` → `tray.showMessage`）
