@@ -95,6 +95,15 @@ class Tray(QSystemTrayIcon):
         m.addAction(self.act_quit)
         self.menu = m
         self.setContextMenu(m)
+        m.aboutToShow.connect(self._refresh_labels)
+
+    def _refresh_labels(self) -> None:
+        """菜单文案跟着「今天有没有目标」变：设定 / 更换。"""
+        try:
+            goal = self.app.store.active_goal()
+        except Exception:
+            goal = None
+        self.act_focus.setText("更换目标…" if goal else "设定目标…")
 
     def _on_activated(self, reason):
         if reason == QSystemTrayIcon.Trigger:
@@ -179,6 +188,9 @@ class Tray(QSystemTrayIcon):
             if level == -1:                 # 来自「第二次启动」的唤起请求
                 log.info("收到唤起请求，打开控制面板")
                 self.open_panel()
+                continue
+            if level == -2:                 # 系统通知：日报 / 周报 / 月报生成
+                self.showMessage("余光", text, QSystemTrayIcon.Information, 6000)
                 continue
             if self.pet.mode != "hidden":
                 self.pet.alert(text, 5000, level)

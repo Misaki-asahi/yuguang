@@ -190,8 +190,10 @@ class App:
                     path = render_day(self.cfg, self.store, day)
                     self._last_report_day = day
                     log.info("日报完成：%s", path)
+                    self.notify("今日日报", self._digest(day))
                     self.maintenance()
-                self._maybe_period_reports(now)
+                    # 周报/月报跟着日报一起出、一起提醒
+                    self._maybe_period_reports(now)
             except Exception:
                 log.error("日报异常：%s", traceback.format_exc(limit=2))
             self._sleep(60)
@@ -210,6 +212,7 @@ class App:
             if self._period_has_data(s, e):
                 path = render_period(self.cfg, self.store, "weekly", weekly_day)
                 log.info("周报完成：%s", path)
+                self.notify("本周周报", f"{weekly_day.isoformat()} 这一周已汇总")
             self.store.kv_set("last_weekly", week_key(weekly_day))
 
         if self.store.kv_get("last_monthly") != month_key(monthly_day):
@@ -217,7 +220,23 @@ class App:
             if self._period_has_data(s, e):
                 path = render_period(self.cfg, self.store, "monthly", monthly_day)
                 log.info("月报完成：%s", path)
+                self.notify("本月月报", f"{monthly_day.isoformat()} 这个月已汇总")
             self.store.kv_set("last_monthly", month_key(monthly_day))
+
+    def notify(self, title: str, text: str) -> None:
+        """发一条系统通知（托盘气泡）。无界面模式没有托盘，只写日志。"""
+        bridge = getattr(self, "bridge", None)
+        if bridge is not None:
+            bridge.push(-2, f"{title}｜{text}")
+        else:
+            log.info("通知：%s｜%s", title, text)
+
+    def _digest(self, day: str) -> str:
+        """日报生成后给通知用的一行摘要。"""
+        from .analyze.aggregate import metrics
+        m = metrics([dict(b) for b in self.store.blocks(day)])
+        return (f"{m['block_count']} 段 · 专注 {fmt_duration(m['focus_minutes'])} · "
+                f"有效比 {m['effective_ratio'] * 100:.0f}%")
 
     def _period_has_data(self, start, end) -> bool:
         from datetime import timedelta

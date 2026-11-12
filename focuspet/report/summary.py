@@ -66,12 +66,13 @@ def period_targets(today: date, now_dt, cfg: dict) -> tuple[date, date]:
     from datetime import datetime as _dt
 
     wd = int(cfg.get("weekly_day", 6))
-    wh, wm = _hm(cfg.get("weekly_time", "21:00"))
+    # 周报/月报跟着日报一起出：时间用 report.time 这一个口径
+    wh, wm = _hm(cfg.get("time", "22:00"))
     weekly_day = today - timedelta(days=(today.weekday() - wd) % 7)
     if _dt.combine(weekly_day, _time(wh, wm)) > now_dt:
         weekly_day -= timedelta(days=7)
 
-    mh, mm = _hm(cfg.get("monthly_time", "21:00"))
+    mh, mm = _hm(cfg.get("time", "22:00"))
     start_m, end_m = month_range(today)
     if _dt.combine(end_m, _time(mh, mm)) <= now_dt:
         monthly_day = end_m

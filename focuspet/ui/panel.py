@@ -189,7 +189,7 @@ class ControlPanel(QWidget):
                     self.btn_carry.hide()
                     self._set_primary(self.btn_goal, True)
 
-            self.btn_goal.setText("点击更换目标" if goal else "开始专注…")
+            self.btn_goal.setText("点击更换目标" if goal else "设定目标")
             # 没声明目标时「深度专注 0 分钟」是误导：那是没测量，不是没干活
             focus_txt = (fmt_duration(m["focus_minutes"]) if m.get("goal_tracked")
                          else f"未统计（深度工作 {fmt_duration(m['deep_minutes'])}）")
@@ -230,7 +230,7 @@ class ControlPanel(QWidget):
     # ---------------------------------------------------------------- 动作
     def _set_goal(self) -> None:
         goal = self.app.store.active_goal()
-        title = "更换目标" if goal else "开始专注"
+        title = "更换目标" if goal else "设定目标"
         text, ok = QInputDialog.getText(self, title, "今天要做什么？（一句话即可）",
                                         text=goal["text"] if goal else "")
         if ok and text.strip():
