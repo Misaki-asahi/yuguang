@@ -47,6 +47,11 @@ rules:
     when: {proc: [Gemini.exe]}
     then: {category: learning, weight: 0.8, activity: 在问 AI}
 
+  - id: ai_antigravity
+    note: Antigravity（AI IDE），地位等同编辑器
+    when: {proc: [Antigravity.exe]}
+    then: {category: deep_work, weight: 0.85, activity: 在 AI IDE 里干活}
+
   - id: desktop_toy
     note: 桌面挂件/宠物，纯背景程序，不算工作也不算摸鱼
     when: {proc: [BongoCat.exe]}
@@ -113,6 +118,11 @@ rules:
     note: 在看余光自己的日报/周报/月报——复盘时间，算浅层工作
     when: {proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe], title_contains: [时间账单, 每周汇总, 本月汇总]}
     then: {category: shallow_work, weight: 0.6, activity: 在看时间账单}
+
+  - id: browser_project
+    note: 常开的项目协作站点（标题里带项目名，规则不认识就会掉进 browser_generic）
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe], title_contains: [智项协同]}
+    then: {category: shallow_work, weight: 0.8, activity: 在看项目页面}
 
   - id: browser_github
     note: GitHub 的仓库页——标题常是 owner/repo（也可能是「美咲朝日/夕光」这种中文名）
