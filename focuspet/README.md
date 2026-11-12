@@ -125,14 +125,15 @@ python -m focuspet        # 再启动一次：会唤起正在运行的实例，�
 | 报表 | 什么时候出 | 文件名 | 手动生成 |
 |---|---|---|---|
 | 日报 | 每天 22:00 | `reports/2026-11-06.html` | `--report` |
-| 周报 | 每周日 21:00 | `reports/weekly-2026-W45.html` | `--weekly` |
-| 月报 | 每月最后一天 21:00 | `reports/monthly-2026-11.html` | `--monthly` |
+| 周报 | 每周日**跟日报同一时间** | `reports/weekly-2026-W45.html` | `--weekly` |
+| 月报 | 每月最后一天**跟日报同一时间** | `reports/monthly-2026-11.html` | `--monthly` |
 
 一周按周一到周日算，月按自然月算。同一周/同一月重复生成只会覆盖同一个文件。
 汇总只读 `block` 表（永久保留），所以清掉截图和明细也不影响历史周报。
 
-想改时间就改 `config.yaml` 的 `report.weekly_day`（0=周一 … 6=周日）、
-`report.weekly_time`、`report.monthly_time`。
+**周报和月报跟日报同一时间出**（都看 `report.time`），出完会弹一条系统通知：
+周日那天是「今日日报 + 本周周报」两条，月末那天是「今日日报 + 本月月报」两条。
+想换日子就改 `report.weekly_day`（0=周一 … 6=周日）；想换时间只改 `report.time` 一处。
 
 **数据与缓存**（托盘右键 → 设置 →「数据与缓存」）：
 
