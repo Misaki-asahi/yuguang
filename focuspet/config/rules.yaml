@@ -74,6 +74,11 @@ rules:
     when: {proc_contains: ["-Win64-Shipping.exe", "-Win64-Shipping-Win64"]}
     then: {category: entertainment, weight: 0.75, activity: 在玩游戏}
 
+  - id: game_maitetsu
+    note: 爱上火车（Maitetsu Last Run）——视觉小说，画面像动漫但确实是游戏
+    when: {proc_contains: ["Maitetsu"]}
+    then: {category: entertainment, weight: 0.9, activity: 在玩《爱上火车》}
+
   # ---------------------------------------------------------------- 办公
   - id: office_doc
     note: 文档、表格、演示，写作类深度工作
