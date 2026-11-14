@@ -281,6 +281,7 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 | 程序已经在跑时 `--once` / `--duration` 不采集，只弹面板 | `main()` 里单实例锁在 `--once` 之前就抢了，抢不到就 `ipc.request_show()` 然后退出 | 想验采集：先退出常驻实例，或直接看 `data/logs/focuspet.log` 里「完成 N 个批次」有没有在走 |
 | 报错里的路径显示成 `withϯ` | GBK 控制台的显示问题，文件本身正常 | 用 `read` / `read_image` 验证，别当成路径损坏 |
 | 双击 `启动余光.bat` 毫无反应，程序不起来 | `.bat` 被存成了 UTF-8（含中文注释、LF 换行），cmd 按 GBK 解析时整行错位，`start` 直接失败；pythonw 又没有控制台，看不到任何报错 | `.bat` 必须**纯 ASCII + CRLF**，注释也只写英文；工作目录用 `pushd` 传，别写 `start /d "路径\"`（结尾反斜杠会吃掉引号）。两个 bat 已按此重写 |
+| 游戏时段全是「未识别」或判成「观看动漫 / 浅层工作」 | ① 全屏窗口**跳过截图**（防 DRM 黑屏），模型没图可用，只能靠进程信号；② 游戏进程名千奇百怪，规则表枚举不完 | 三层兜底：`proc_contains`（如 `-Win64-Shipping.exe` 覆盖所有 UE 游戏）、`parent_contains`（Steam/Epic 父进程）、剩下靠纠错对话框一键生成 `learned_*` 规则。视觉小说画面像动漫，提示词第 10 条已明确「游戏一律 entertainment」 |
 | 配好模型后每批都报 `HTTP 400 ... max_tokens 超出范围 [1,1024]` | 智谱 GLM-4V 系列把 `max_tokens` 硬限在 1024，代码原来写死 1200 | 已改成读 `analyze.max_tokens`（默认 1024）；换别家模型可以调大 |
 | 模型返回的 JSON 明明合法，却报「输出无法通过校验」 | 模型只精确到分钟，段起点会比窗口起点早几十秒，旧校验要求 `st >= win_start` 直接把整段丢掉 | 已给 1 分钟容差并裁回窗口（`vlm.validate`）；改时间窗逻辑时别再收紧回去 |
 | 模型偶尔直接吐 `[{...}]` 数组，不包 `{"segments": [...]}` | 免费模型不总守格式，旧校验只认对象，整批判失败 → 降级成 unknown | 已兼容裸数组（`validate` 开头把 list 包成 dict）；再遇到格式问题先看 `vlm.parse_json` 的原文 |

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS sample (
   ts        INTEGER NOT NULL,
   proc      TEXT,
   title     TEXT,
+  parent    TEXT,               -- 父进程名：Steam/Epic 启动的游戏靠它认
   shot      TEXT,
   dhash     INTEGER,
   idle      INTEGER DEFAULT 0,
@@ -171,6 +172,15 @@ class Store:
                     log.info("goal 表补上 kind 列")
                 except sqlite3.Error:
                     pass
+            # 老库补列：父进程 parent（Steam/Epic 启动的游戏靠它认）
+            scols = {r["name"] for r in self.conn.execute("PRAGMA table_info(sample)")}
+            if "parent" not in scols:
+                try:
+                    self.conn.execute("ALTER TABLE sample ADD COLUMN parent TEXT")
+                    self.conn.commit()
+                    log.info("sample 表补上 parent 列")
+                except sqlite3.Error:
+                    pass
         try:
             n = self.replay_pending()
             if n:
@@ -203,18 +213,18 @@ class Store:
 
     def insert_sample(self, ts: int, proc: str, title: str, shot: str | None,
                       dhash: int | None, idle: int = 0,
-                      sensitive: int = 0, settled: int = 1) -> int | None:
+                      sensitive: int = 0, settled: int = 1, parent: str = "") -> int | None:
         try:
             cur = self._exec(
-                "INSERT INTO sample(ts, proc, title, shot, dhash, idle, sensitive, settled)"
-                " VALUES(?,?,?,?,?,?,?,?)",
-                (int(ts), proc, title, shot, self._s64(dhash), int(idle),
+                "INSERT INTO sample(ts, proc, title, parent, shot, dhash, idle, sensitive,"
+                " settled) VALUES(?,?,?,?,?,?,?,?,?)",
+                (int(ts), proc, title, parent or "", shot, self._s64(dhash), int(idle),
                  int(sensitive), int(settled)),
             )
             return cur.lastrowid
         except Exception as exc:
             self._spill({"kind": "sample", "ts": int(ts), "proc": proc, "title": title,
-                         "shot": shot, "dhash": dhash, "idle": idle,
+                         "parent": parent, "shot": shot, "dhash": dhash, "idle": idle,
                          "sensitive": sensitive, "settled": settled, "error": str(exc)})
             return None
 
@@ -239,7 +249,8 @@ class Store:
             got = self.insert_sample(row.get("ts", 0), row.get("proc", ""),
                                      row.get("title", ""), row.get("shot"),
                                      row.get("dhash"), row.get("idle", 0),
-                                     row.get("sensitive", 0), row.get("settled", 1))
+                                     row.get("sensitive", 0), row.get("settled", 1),
+                                     row.get("parent", ""))
             if got:
                 ok += 1
             else:

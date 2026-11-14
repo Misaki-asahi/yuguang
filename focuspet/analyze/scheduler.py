@@ -34,6 +34,14 @@ def _overlap(seg: dict, block: dict) -> int:
                - max(int(seg["start_ts"]), int(block["start_ts"])))
 
 
+def _parent_of(row) -> str:
+    """采样行的父进程名；老库没有这一列时返回空串。"""
+    try:
+        return row["parent"] or ""
+    except (IndexError, KeyError):
+        return ""
+
+
 def _overlap_ratio(seg: dict, block: dict) -> float:
     dur = max(1, int(block["end_ts"]) - int(block["start_ts"]))
     return _overlap(seg, block) / dur
@@ -396,7 +404,7 @@ class Scheduler:
                 cat, act, conf = "unknown", "敏感窗口（不记录细节）", 1.0
                 evidence = "敏感窗口，只记录时间，不记录内容。"
             else:
-                hit = self.rules.classify(r["proc"], r["title"])
+                hit = self.rules.classify(r["proc"], r["title"], _parent_of(r))
                 cat, act, conf = hit.category, describe(hit, r["proc"]), hit.weight
                 evidence = (f"进程 {r['proc']}，窗口「{(r['title'] or '')[:40]}」，"
                             f"命中规则 {hit.rule_id}（权重 {hit.weight:.2f}）")

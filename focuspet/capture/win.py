@@ -28,6 +28,7 @@ class WindowInfo:
     title: str
     pid: int
     proc: str
+    parent: str = ""        # 父进程名：Steam/Epic 启动的游戏只能靠它认
 
     def key(self) -> tuple:
         return (self.proc, self.title)
@@ -58,6 +59,19 @@ def _proc_name(pid: int) -> str:
         return ""
 
 
+@lru_cache(maxsize=512)
+def _parent_name(pid: int) -> str:
+    """父进程名。Steam / Epic 启动的游戏，游戏进程名千奇百怪，但父进程是启动器。"""
+    if pid <= 0:
+        return ""
+    try:
+        import psutil
+        par = psutil.Process(pid).parent()
+        return par.name() if par else ""
+    except Exception:
+        return ""
+
+
 def foreground() -> WindowInfo | None:
     """当前前台窗口。失败返回 None，调用方继续记时间戳即可。"""
     if not IS_WINDOWS:
@@ -71,7 +85,8 @@ def foreground() -> WindowInfo | None:
         pid = wintypes.DWORD()
         _u.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         return WindowInfo(hwnd=hwnd, title=buf.value or "",
-                          pid=pid.value, proc=_proc_name(pid.value))
+                          pid=pid.value, proc=_proc_name(pid.value),
+                          parent=_parent_name(pid.value))
     except Exception:
         return None
 

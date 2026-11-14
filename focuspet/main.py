@@ -116,7 +116,8 @@ class App:
         settled = 1 if (now - self._key_changed_at) >= TITLE_SETTLE_SEC else 0
 
         sid = self.store.insert_sample(int(now), win.proc, title, shot_path, dhash,
-                                       sensitive=sensitive, settled=settled)
+                                       sensitive=sensitive, settled=settled,
+                                       parent=win.parent)
         self._last_win = key
         heartbeat()
         return {"state": "ok", "proc": win.proc, "title": title,

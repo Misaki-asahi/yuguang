@@ -51,8 +51,8 @@ class RuleSet:
             log.error("规则表解析失败：%s（沿用空表，不阻断采集）", exc)
             self.rules = []
 
-    def classify(self, proc: str, title: str) -> Hit:
-        p, t = _norm(proc), _norm(title)
+    def classify(self, proc: str, title: str, parent: str = "") -> Hit:
+        p, t, par = _norm(proc), _norm(title), _norm(parent)
         best: Hit | None = None
         for rule in self.rules:
             w = rule["when"]
@@ -65,6 +65,11 @@ class RuleSet:
             # 进程名只能用后缀/片段匹配的（比如虚幻游戏的 *-Win64-Shipping.exe）
             frags = w.get("proc_contains")
             if frags is not None and not any(_norm(x) in p for x in frags):
+                continue
+
+            # 父进程：Steam/Epic 启动的游戏，进程名是游戏自己的，只能靠这个认
+            pfrags = w.get("parent_contains")
+            if pfrags is not None and not any(_norm(x) in par for x in pfrags):
                 continue
 
             needles = w.get("title_contains")
