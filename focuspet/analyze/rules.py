@@ -62,6 +62,11 @@ class RuleSet:
             if procs is not None and p not in {_norm(x) for x in procs}:
                 continue
 
+            # 进程名只能用后缀/片段匹配的（比如虚幻游戏的 *-Win64-Shipping.exe）
+            frags = w.get("proc_contains")
+            if frags is not None and not any(_norm(x) in p for x in frags):
+                continue
+
             needles = w.get("title_contains")
             if needles is not None and not any(_title_hit(t, n) for n in needles):
                 continue

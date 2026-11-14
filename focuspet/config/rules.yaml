@@ -2,6 +2,8 @@
 # 规则一律进 YAML，改规则不用改代码。
 # weight >= 0.9 直接用规则结论；0.6~0.9 与模型结论交叉验证；< 0.6 交给模型。
 # 每条带 id 和一句 note，三个月不清就清一次（17 节风险表）。
+# when 支持四种条件：proc（进程名精确匹配）/ proc_contains（进程名片段，
+# 比如 "-Win64-Shipping.exe" 覆盖所有虚幻引擎游戏）/ title_contains / title_regex。
 
 version: 1
 
@@ -61,6 +63,16 @@ rules:
     note: 游戏启动器（鸣潮等）；模型对它的判断不稳定，直接按娱乐算
     when: {proc: [launcher_main.exe]}
     then: {category: entertainment, weight: 0.85, activity: 在玩游戏}
+
+  - id: game_wuthering
+    note: 鸣潮的游戏本体（虚幻引擎打包出的进程，和启动器不是一个）
+    when: {proc: [Client-Win64-Shipping.exe], title_contains: [鸣潮]}
+    then: {category: entertainment, weight: 0.9, activity: 在玩鸣潮}
+
+  - id: game_ue_generic
+    note: 所有虚幻引擎打包的游戏都用 *-Win64-Shipping.exe 这个进程名
+    when: {proc_contains: ["-Win64-Shipping.exe", "-Win64-Shipping-Win64"]}
+    then: {category: entertainment, weight: 0.75, activity: 在玩游戏}
 
   # ---------------------------------------------------------------- 办公
   - id: office_doc
