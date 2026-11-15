@@ -15,7 +15,6 @@ from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import (QApplication, QInputDialog, QMenu, QMessageBox,
                                QSystemTrayIcon)
 
-from .. import config
 from ..analyze.aggregate import fmt_duration, metrics
 from ..capture.store import day_bounds, day_of
 from ..log import get
@@ -265,3 +264,4 @@ def run_ui(app, show_panel: bool = False) -> int:
     finally:
         ipc.cleanup()
         app.stop()
+

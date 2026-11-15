@@ -310,14 +310,6 @@ class App:
 
 
 # -------------------------------------------------------------------- CLI
-def _parse_hm(text: str) -> tuple[int, int]:
-    try:
-        hh, mm = (int(x) for x in str(text).split(":")[:2])
-        return hh, mm
-    except Exception:
-        return 21, 0
-
-
 def _cmd_unknown(store, days: int = 2) -> None:
     """把「未识别」的窗口按出现次数排出来，方便照着补规则。"""
     import collections

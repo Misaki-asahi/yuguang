@@ -396,13 +396,6 @@ class Store:
                 (category, int(row["start_ts"]), int(row["end_ts"])))
             self.conn.commit()
 
-    def set_analysis_category(self, start_ts: int, end_ts: int, category: str) -> None:
-        with self._lock:
-            self.conn.execute(
-                "UPDATE analysis SET category=? WHERE start_ts>=? AND start_ts<?",
-                (category, int(start_ts), int(end_ts)))
-            self.conn.commit()
-
     def set_block_on_task(self, start_ts: int, end_ts: int, on_task: bool) -> int:
         """目标语义匹配用：把某段时间块的 on_task 改成模型判断的结果。"""
         with self._lock:

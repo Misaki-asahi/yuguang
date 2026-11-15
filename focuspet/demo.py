@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -141,3 +141,4 @@ def run(cfg: dict, store: Store, day: str | None = None) -> dict:
 def open_demo_store():
     """演示专用库与目录，和真实数据完全隔离。"""
     return Store(config.DEMO_DB)
+

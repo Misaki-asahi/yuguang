@@ -41,12 +41,6 @@ SHARP = [
     "我已经提醒过 {n} 次了，接下来交给你。",
     "关掉这个页面的成本，比晚上后悔低。",
 ]
-REPLIES = {
-    "back_to_work": "好，我盯着。",
-    "rest": "行，{n} 分钟后见。",
-    "legit": "明白了，这个记下来，下次不吵你。",
-    "closed": "",
-}
 
 # 正向反馈：只提醒「你跑偏了」的话，用三周就被无视了。
 # 这几条不占提醒配额、不冷却，一段够长的深度工作结束后说一次。
@@ -151,23 +145,3 @@ class Intervener:
             except Exception:
                 log.exception("通知器异常，已跳过正向反馈")
         return text
-
-    # ---------------------------------------------------------------- 用户动作
-    def respond(self, level: int, action: str, category: str = "",
-                now: int | None = None) -> str:
-        """用户点了什么，就回一句什么（附录 D.4），同时把状态写回去。"""
-        now = int(now or time.time())
-        today = time.strftime("%Y-%m-%d", time.localtime(now))
-        self.store.add_intervention(level, category, "user_action", action)
-
-        if action == "rest":
-            state = self.store.kv_get(f"cooldown:{category}", {}) or {}
-            state["rest_until"] = now + int(self.cfg["judge"].get("rest_minutes", 10)) * 60
-            self.store.kv_set(f"cooldown:{category}", state)
-        elif action == "legit":
-            exempt = self.store.kv_get(f"exempt:{today}", []) or []
-            if category and category not in exempt:
-                exempt.append(category)
-            self.store.kv_set(f"exempt:{today}", exempt)
-
-        return REPLIES.get(action, "").format(n=self.cfg["judge"].get("rest_minutes", 10))

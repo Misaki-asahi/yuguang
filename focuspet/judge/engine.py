@@ -23,10 +23,6 @@ class Verdict:
     rule_id: str = ""
     block_id: int | None = None
 
-    def as_dict(self) -> dict:
-        return {"level": self.level, "reason": self.reason,
-                "rule_id": self.rule_id, "block_id": self.block_id}
-
 
 QUIET = Verdict(0, "")
 

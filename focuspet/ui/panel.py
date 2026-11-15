@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QHBoxLayout, QInputDialog,
 
 from .. import autostart, config, goalkind
 from ..analyze.aggregate import fmt_duration, metrics
-from ..capture.store import day_bounds, day_of
+from ..capture.store import day_of
 from ..log import get
 
 log = get("panel")
@@ -334,3 +334,4 @@ class ControlPanel(QWidget):
     def closeEvent(self, event) -> None:
         event.ignore()
         self.hide()
+

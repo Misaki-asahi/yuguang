@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 
-from .. import config, goalkind
+from .. import goalkind
 from ..capture.store import day_of
 from ..log import get
 from . import aggregate, vlm
@@ -292,7 +292,6 @@ class Scheduler:
         """
         if not self._vlm_allowed():
             return 0
-        from datetime import datetime
         goal = self.store.goal_of_day(day)
         if not goal:
             log.info("目标匹配跳过：当天没有声明目标")

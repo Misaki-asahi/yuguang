@@ -44,10 +44,6 @@ def month_range(day: date) -> tuple[date, date]:
     return start, nxt - timedelta(days=1)
 
 
-def is_last_day_of_month(day: date) -> bool:
-    return (day + timedelta(days=1)).month != day.month
-
-
 def week_key(day: date) -> str:
     y, w, _ = day.isocalendar()
     return f"{y}-W{w:02d}"

@@ -2,21 +2,11 @@
 """桌宠窗口（设计方案 13.3 / 13.4）。
 
 四个标志位缺一不可，尤其是 Qt.Tool——不加的话它会出现在 Alt+Tab 和任务栏里，
-用户第一件事就是关掉它。MVP 阶段不做 Live2D，QPainter 画 2～3 帧足够。
+用户第一件事就是关掉它。
 
-2026-11-08（feat/pet-walk）：它不再钉死在右下角——会自己在屏幕上踱步、走累了
-停下发呆、碰到屏幕边缘掉头，眼睛还会跟着鼠标转。走路时的腿摆和身体起伏都由
-QPainter 现画，不引入任何美术资源；速度与开关走 config.yaml 的 ui.pet_wander /
-ui.pet_speed，拖拽时自动停下，松手后歇两秒再继续走。
-
-2026-11-08 晚：接入第一版真素材 focuspet/assets/pet/juyuan/pose.png（菊鸳静态立绘）。
-有立绘时窗口按立绘尺寸撑开、脚底贴底边居中、气泡留在头顶；没立绘自动回退到上面
-那套手画的小熊。ui.pet_wander=false 时它就不自己走了（钉在原地）。
-
-2026-11-09：接入动作包 focuspet/assets/pet/juyuan-pack/（菊鸳的逐帧动画，来自已获
-授权的 aboutme-pets claude 包，见同目录 ASSETS-LICENSE.md）。素材优先级：
-**动作包 > 静态立绘 > 手画小熊**。动作包由 focuspet/anim/ 负责解析、切图、播放；
-本文件只做窗口层：把当前帧画在脚底锚点上、接鼠标事件、切状态。
+素材优先级：**动作包 > 静态立绘 > 手画小熊**。动作包由 focuspet/anim/ 解析、切图、
+播放（来自由 aboutme-pets 授权改编的菊鸳包，见 assets/pet/ 下的许可说明）；
+本文件只做窗口层：把当前帧画在脚底锚点上、接鼠标事件、切状态、管显示层级。
 """
 from __future__ import annotations
 
@@ -208,19 +198,6 @@ class Pet(QWidget):
         super().showEvent(e)
         if self._player is not None and not self._player.is_playing():
             self._play_idle()
-
-    def set_state(self, state: str) -> None:
-        if state == "sleep":
-            self.show_idle_pos()
-        self.state = state
-        if self._player is not None:
-            if state == "sleep":
-                self._play(self._pack.pick_event("sleep") or "idle_doze")
-            elif state == "walking":
-                self._play(self._pack.pick_event("walk") or "walk")
-            elif state in ("idle", "rest"):
-                self._play_idle()
-        self.update()
 
     def show_idle_pos(self) -> None:
         """把桌宠放到屏幕右下角贴边（首次启动 / 从全屏退出时）。"""

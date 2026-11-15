@@ -92,8 +92,3 @@ class Corrections:
             log.warning("写规则失败：%s", exc)
             return None
         return {"id": rid, "proc": proc, "keyword": kw, "category": cat}
-
-    def stats(self) -> dict:
-        rows = self.store.conn.execute(
-            "SELECT new_cat, COUNT(*) c FROM correction GROUP BY new_cat").fetchall()
-        return {r["new_cat"]: r["c"] for r in rows}

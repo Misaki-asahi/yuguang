@@ -115,10 +115,6 @@ class Capturer:
         rel = path.relative_to(config.DATA).as_posix()
         return rel, h
 
-    def reset(self) -> None:
-        """分辨率突变（远程桌面切换）后丢弃旧哈希，重新开始比（4 节降级表）。"""
-        self._last_hash = None
-
     def close(self) -> None:
         if self._sct is not None:
             try:

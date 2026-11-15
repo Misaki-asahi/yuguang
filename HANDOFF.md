@@ -50,7 +50,6 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 |---|---|---|
 | `HANDOFF.md` | 本文件，项目状态与交接 | 每次会话结束时更新 |
 | `余光_流程_大纲_设计方案_v1.1.docx` | **当前交付物**，40 页设计方案 | 只由脚本生成，不手改 |
-| `余光_流程_大纲_设计方案_v1.0.docx` | 上一版存档（截图 60 秒版），只留作对比 | 不要再改，也不要再引用 |
 | `content/part1.md` | 第一部分 流程设计（约 6.9k 字符） | 改文字改这里 |
 | `content/part2.md` | 第二部分 项目大纲（约 4.1k 字符） | 同上 |
 | `content/part3.md` | 第三部分 设计方案（最长，约 2 万字符） | 同上 |
@@ -148,7 +147,7 @@ python -m focuspet --weekly      # 周报；--monthly 月报
 
 仓库：**https://github.com/Misaki-asahi/yuguang**（公开，`main` 分支，本地已 `remote add origin`）
 
-- **59 个文件 / 1.7 MB**，提交历史干净（初始版本 → 模板 → 交接文档）；`.gitignore` 已排除 `focuspet/data/`、`*.db`、`config.yaml`、日志、两个本机 `.bat`、旧版 v1.0 文档
+- **59 个文件 / 1.7 MB**，提交历史干净（初始版本 → 模板 → 交接文档）；`.gitignore` 已排除 `focuspet/data/`、`*.db`、`config.yaml`、日志、两个本机 `.bat`
 - 已从远端重新 clone 验证：**不含任何截图 / 数据库 / 配置**；README 配图、规则表、LICENSE 的 raw 链接均 200
 - 发现过的坑：**GitHub 用户名是 `Misaki-asahi`，写成 `Misaki` 会报 `Repository not found`**（不是权限问题，是 URL 错了）
 - 用户知情：仓库当前公开；改 private 不影响已加协作者，但已有的 fork 不会跟着变私有；免费版私有仓库协作者上限约 3 人
@@ -317,7 +316,7 @@ $cli  = "E:\deepseek harness\resources\app.asar.unpacked\dsh\node_modules\@deeps
 动手前按顺序读：
 1) HANDOFF.md —— 项目交接与当前状态（必读，读了再动手）
 2) focuspet/README.md —— 代码侧怎么跑、目录、限制
-3) 余光_流程_大纲_设计方案_v1.1.docx —— 当前交付的 40 页设计文档（v1.0 是存档，别引用）
+3) 余光_流程_大纲_设计方案_v1.1.docx —— 当前交付的 40 页设计文档（v1.0 已删，别再引用）
 4) content/*.md —— 文档源文；focuspet/ —— 代码
 
 必须守住的约束：
