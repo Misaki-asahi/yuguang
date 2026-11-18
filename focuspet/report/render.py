@@ -250,6 +250,19 @@ def _legend(d: dict) -> str:
         for c, v in rows)
 
 
+def _conf_for(block, analyses: list) -> float:
+    """这个块「按它自己的类别」有多可信。
+
+    块是几段合并来的，存的 confidence 取的是最小值——混进一小段 unknown 就会
+    显示成 0.30，看着像瞎猜。这里取同类段里最可信的那条，才是这个结论的真实依据。
+    """
+    confs = [float(a["confidence"] or 0) for a in analyses
+             if a["category"] == block["category"]
+             and int(a["start_ts"]) < int(block["end_ts"])
+             and int(a["end_ts"]) > int(block["start_ts"])]
+    return max(confs) if confs else float(block.get("confidence") or 0)
+
+
 def _blocks(d: dict) -> str:
     out = []
     for b in d["blocks"]:
@@ -274,7 +287,7 @@ def _blocks(d: dict) -> str:
             '<div class="ev">'
             f'<div><p>{_esc(ev_text) if ev_text else "这一段的依据是窗口标题与进程名（元数据档）。"}</p>'
             f'<p style="margin-top:8px;color:#8A94A3;font-size:11.5px">'
-            f'置信度 {float(b.get("confidence") or 0):.2f}</p></div>'
+            f'置信度 {_conf_for(b, d["analyses"]):.2f}</p></div>'
             f'<div>{img}</div></div>')
 
         out.append(
