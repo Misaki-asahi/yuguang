@@ -146,8 +146,15 @@ def _recovery(store, day: str) -> tuple[float | None, int]:
 
 
 def _evidence(block, analyses: list) -> str:
+    """只拿「和这个块同类」的判据。
+
+    块是几段合并出来的，如果连别的类别的判据一起贴上去，就会出现
+    「标着浅层工作、证据却在说 GitHub 深度工作」的矛盾。
+    """
     texts = []
     for a in analyses:
+        if a["category"] != block["category"]:
+            continue
         if int(a["start_ts"]) < int(block["end_ts"]) and int(a["end_ts"]) > int(block["start_ts"]):
             ev = (a["evidence"] or "").strip()
             if ev and ev not in texts:

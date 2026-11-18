@@ -147,6 +147,16 @@ rules:
     when: {proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe], title_contains: [智项协同]}
     then: {category: shallow_work, weight: 0.8, activity: 在看项目页面}
 
+  - id: browser_local
+    note: 本地服务/自建页面（localhost、127.0.0.1），一般是自己在调试或跑本地工具
+    when: {proc: [chrome.exe, msedge.exe, firefox.exe, brave.exe], title_contains: [localhost, 127.0.0.1]}
+    then: {category: deep_work, weight: 0.7, activity: 在调试本地服务}
+
+  - id: app_workbuddy
+    note: WorkBuddy 桌面端（窗口标题固定为 WorkBuddy，只能按进程认）
+    when: {proc: [WorkBuddy.exe]}
+    then: {category: deep_work, weight: 0.7, activity: 在 WorkBuddy 里干活}
+
   - id: browser_github
     note: GitHub 的仓库页——标题常是 owner/repo（也可能是「美咲朝日/夕光」这种中文名）
     when:
