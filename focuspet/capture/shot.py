@@ -55,6 +55,7 @@ class Capturer:
         strip = cfg["privacy"].get("strip_crop") or [0, 0, 1.0, 1.0]
         self.strip = tuple(float(x) for x in strip)
         self._sct = None
+        self._origin = (0, 0)
         self._last_hash: int | None = None
 
     # ---------------------------------------------------------------- 底层
@@ -72,15 +73,20 @@ class Capturer:
             monitors = sct.monitors
             if idx >= len(monitors):
                 idx = 1
-            raw = sct.grab(monitors[idx])
+            mon = monitors[idx]
+            self._origin = (int(mon.get("left", 0)), int(mon.get("top", 0)))
+            raw = sct.grab(mon)
             return Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
         except Exception:
             return None
 
     # ---------------------------------------------------------------- 主路径
-    def shot(self, now: float | None = None) -> tuple[str, int] | None:
+    def shot(self, now: float | None = None,
+             rect: tuple[int, int, int, int] | None = None) -> tuple[str, int] | None:
         """截一张、去个重、存下来，返回 (相对路径, dhash)。
 
+        rect 是前台窗口的屏幕矩形：给了就只留这个窗口——同样的 1280 像素
+        全给一个窗口，比全屏缩下来清楚得多，模型读正文才读得动。
         None 表示这一帧不该存：截图失败 / 全黑 / 与上一帧几乎是同一画面。
         """
         img = self.grab()
@@ -94,12 +100,24 @@ class Capturer:
             return None
         self._last_hash = h
 
-        # 只发送窗口内容区：裁掉任务栏和通知区（16.2 的脱敏定义）
-        w, hgt = img.size
-        l, t, r, b = self.strip
-        box = (int(w * l), int(hgt * t), int(w * r), int(hgt * b))
-        if box != (0, 0, w, hgt):
-            img = img.crop(box)
+        cropped = False
+        if rect:
+            ox, oy = getattr(self, "_origin", (0, 0))
+            l = max(0, int(rect[0]) - ox)
+            t = max(0, int(rect[1]) - oy)
+            r = min(img.width, int(rect[2]) - ox)
+            b = min(img.height, int(rect[3]) - oy)
+            if r - l >= 160 and b - t >= 120:
+                img = img.crop((l, t, r, b))
+                cropped = True
+
+        if not cropped:
+            # 没裁窗口时才需要手工裁任务栏和通知区（16.2 的脱敏定义）
+            w, hgt = img.size
+            l, t, r, b = self.strip
+            box = (int(w * l), int(hgt * t), int(w * r), int(hgt * b))
+            if box != (0, 0, w, hgt):
+                img = img.crop(box)
 
         img.thumbnail((self.max_side, self.max_side))
 

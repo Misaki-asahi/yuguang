@@ -454,7 +454,19 @@ class Scheduler:
             "prev": prev,
             "focus": "、".join(f"{_hm(s['start_ts'])}-{_hm(s['end_ts'])}" for s in focus)
                      if focus else "",
+            "cands": "、".join(aggregate.label(c) for c in self._candidates(samples)),
         }
+
+    def _candidates(self, samples: list) -> list[str]:
+        """规则对这批采样的初判（前两类），给模型当参考，不强制。"""
+        counter: dict[str, int] = {}
+        for r in samples:
+            if r["idle"]:
+                continue
+            hit = self.rules.classify(r["proc"], r["title"], _parent_of(r))
+            if hit.category != "unknown":
+                counter[hit.category] = counter.get(hit.category, 0) + 1
+        return [c for c, _ in sorted(counter.items(), key=lambda kv: -kv[1])[:2]]
 
     def _prev_summary(self, ws: int) -> str:
         rows = self.store.analyses(day_of(ws - 1))
@@ -479,10 +491,47 @@ class Scheduler:
         samples = self.store.samples(day_start, day_end)
         aggregate.attach_shots(merged, samples)
         blocks = aggregate.to_blocks(merged)
+        self._rescore(blocks, rows)
         # 空白处（idle 或采集断档）补灰段，不猜测，只标出来
         blocks = _fill_gaps(blocks, day_start, day_end)
         self.store.replace_blocks(day, blocks)
         return blocks
+
+    @staticmethod
+    def _rescore(blocks: list[dict], rows: list) -> None:
+        """按「时长 × 置信度」给每个块重新投票选类别。
+
+        合并时短段会被吞进邻居，可能让整块挂上邻居的类别（GitHub 那 40 秒就是这样
+        被微信的段吞掉的）。这里按证据票数复核：只有新类别票数明显更高（>1.25 倍）
+        才改，避免轻微抖动就翻脸。
+        """
+        import collections
+
+        for b in blocks:
+            if b["category"] in ("gap", "unknown"):
+                continue
+            scores: dict[str, float] = {}
+            acts: dict[str, collections.Counter] = {}
+            for a in rows:
+                if int(a["end_ts"]) <= int(b["start_ts"]) or int(a["start_ts"]) >= int(b["end_ts"]):
+                    continue
+                ov = (min(int(a["end_ts"]), int(b["end_ts"]))
+                      - max(int(a["start_ts"]), int(b["start_ts"])))
+                if ov <= 0:
+                    continue
+                cat = a["category"]
+                if cat in ("gap", "unknown"):
+                    continue        # 未识别不参与投票，不能把已判出的段投回未知
+                scores[cat] = scores.get(cat, 0.0) + ov * float(a["confidence"] or 0.3)
+                acts.setdefault(cat, collections.Counter())[a["activity"] or ""] += ov
+            if not scores:
+                continue
+            top, top_score = max(scores.items(), key=lambda kv: kv[1])
+            if top == b["category"] or top_score <= scores.get(b["category"], 0.0) * 1.25:
+                continue
+            b["category"] = top
+            if acts.get(top):
+                b["activity"] = acts[top].most_common(1)[0][0]
 
 
 def _fill_gaps(blocks: list[dict], day_start: int, day_end: int) -> list[dict]:

@@ -102,14 +102,24 @@ def merge_segments(segments: list[dict], gap: int = 180, min_len: int = 60) -> l
 
 
 def attach_shots(segments: list[dict], samples: list) -> list[dict]:
-    """给每个块挂一张代表性截图，供日报回看证据（7.1 的第 2 条要求）。"""
-    shots = [(int(r["ts"]), r["shot"]) for r in samples if r["shot"]]
+    """给每个块挂一张代表性截图，供日报回看证据（7.1 的第 2 条要求）。
+
+    优先取「这段开始 3 秒以后」的第一张：刚切过去的那一帧，页面可能还在加载、
+    标题还没稳定，拿它当证据容易指错。
+    """
+    shots = sorted(((int(r["ts"]), r["shot"]) for r in samples if r["shot"]),
+                   key=lambda x: x[0])
     for seg in segments:
         if seg.get("shot_ref") or not shots:
             continue
-        mid = (int(seg["start_ts"]) + int(seg["end_ts"])) // 2
-        best = min(shots, key=lambda x: abs(x[0] - mid))
-        seg["shot_ref"] = best[1]
+        start, end = int(seg["start_ts"]), int(seg["end_ts"])
+        inside = [(t, s) for t, s in shots if start <= t < end]
+        if inside:
+            after = [(t, s) for t, s in inside if t >= start + 3]
+            seg["shot_ref"] = (after or inside)[0][1]
+            continue
+        mid = (start + end) // 2
+        seg["shot_ref"] = min(shots, key=lambda x: abs(x[0] - mid))[1]
     return segments
 
 

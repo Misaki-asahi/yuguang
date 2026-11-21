@@ -104,7 +104,10 @@ class App:
                 if winmod.is_fullscreen(win.hwnd):
                     log.debug("全屏窗口跳过截图：%s", win.proc)
                 else:
-                    got = self.capturer.shot(now)
+                    rect = None
+                    if cap.get("crop_to_window", True):
+                        rect = winmod.window_rect(win.hwnd)
+                    got = self.capturer.shot(now, rect=rect)
                     if got:
                         shot_path, dhash = got
 

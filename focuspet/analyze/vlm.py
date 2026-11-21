@@ -52,6 +52,9 @@ USER_TEMPLATE = """【用户今日目标】
 【需要判断的片段】
 {focus}
 
+【规则初判（仅供你参考，可以推翻）】
+{cands}
+
 【前台窗口记录】
 {timeline}
 
@@ -101,6 +104,7 @@ def build_messages(cfg: dict, batch: dict) -> dict:
         wstart=_hm(batch["start_ts"]),
         wend=_hm(batch["end_ts"]),
         focus=batch.get("focus") or "整个时间窗",
+        cands=batch.get("cands") or "（无）",
         timeline="\n".join(lines),
         n=len(batch.get("frames", [])),
         prev=batch.get("prev") or "（无）",

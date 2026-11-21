@@ -38,6 +38,7 @@ DEFAULTS = {
         "shot_on_window_change": False,  # 切窗口不再补拍，否则上面那个间隔形同虚设
         "idle_threshold_sec": 300,
         "max_shot_side": 1280,
+        "crop_to_window": True,    # 只截前台窗口：同样 1280 像素，字清楚得多
         "jpeg_quality": 70,
         "screens": [1],
     },

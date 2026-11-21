@@ -116,6 +116,21 @@ class _RECT(ctypes.Structure):
                 ("right", ctypes.c_long), ("bottom", ctypes.c_long)]
 
 
+def window_rect(hwnd: int) -> tuple[int, int, int, int] | None:
+    """窗口在屏幕坐标系里的矩形（物理像素），截图裁剪用。拿不到返回 None。"""
+    if not IS_WINDOWS or not hwnd:
+        return None
+    try:
+        rect = _RECT()
+        if not _u.GetWindowRect(hwnd, ctypes.byref(rect)):
+            return None
+        if rect.right - rect.left < 160 or rect.bottom - rect.top < 120:
+            return None
+        return (int(rect.left), int(rect.top), int(rect.right), int(rect.bottom))
+    except Exception:
+        return None
+
+
 def is_fullscreen(hwnd: int) -> bool:
     """窗口外框是否等于所在显示器外框。
 
