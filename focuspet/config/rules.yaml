@@ -157,6 +157,16 @@ rules:
     when: {proc: [WorkBuddy.exe]}
     then: {category: deep_work, weight: 0.7, activity: 在 WorkBuddy 里干活}
 
+  - id: app_comfy_desktop
+    note: ComfyUI 桌面端，搭/跑图像与视频工作流，属于深度工作
+    when: {proc: ["Comfy Desktop.exe"]}
+    then: {category: deep_work, weight: 0.85, activity: 在 ComfyUI 里跑工作流}
+
+  - id: browser_comfy
+    note: ComfyUI 官方文档、工作流页面——查资料性质
+    when: {proc: [msedge.exe, chrome.exe, firefox.exe], title_contains: [ComfyUI, Comfy]}
+    then: {category: learning, weight: 0.8, activity: 在查 ComfyUI 文档}
+
   - id: browser_github
     note: GitHub 的仓库页——标题常是 owner/repo（也可能是「美咲朝日/夕光」这种中文名）
     when:
