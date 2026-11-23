@@ -8,6 +8,19 @@
 
 version: 1
 
+# 「内容不固定」的应用：同一个窗口里可能写代码、查资料、闲聊、发呆。
+# 这些进程的规则只当先验，每批都会让模型看一眼画面再定类别。
+volatile:
+  - Gemini.exe
+  - WorkBuddy.exe
+  - "DeepSeek Harness.exe"
+  - CherryStudio.exe
+  - Chatbox.exe
+  - Cursor.exe
+  - Antigravity.exe
+  - Code.exe
+  - "Comfy Desktop.exe"
+
 rules:
   # ---------------------------------------------------------------- 开发
   - id: dev_ide

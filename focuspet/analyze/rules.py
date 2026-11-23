@@ -35,21 +35,30 @@ class RuleSet:
     def __init__(self, path: Path | str | None = None):
         self.path = Path(path or config.RULES_PATH)
         self.rules: list[dict] = []
+        self.volatile: set[str] = set()
         self.load()
 
     def load(self) -> None:
         if not self.path.exists():
             log.warning("规则表不存在：%s，将全部交给模型判断", self.path)
             self.rules = []
+            self.volatile = set()
             return
         try:
             with open(self.path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
             self.rules = [r for r in data.get("rules", []) if r.get("when") and r.get("then")]
-            log.info("规则表载入 %d 条", len(self.rules))
+            self.volatile = {_norm(x) for x in (data.get("volatile") or [])}
+            log.info("规则表载入 %d 条（%d 个内容不固定的进程）",
+                     len(self.rules), len(self.volatile))
         except Exception as exc:
             log.error("规则表解析失败：%s（沿用空表，不阻断采集）", exc)
             self.rules = []
+            self.volatile = set()
+
+    def is_volatile(self, proc: str) -> bool:
+        """这个进程的内容是不是「每批都可能不一样」，需要模型看画面。"""
+        return _norm(proc) in self.volatile
 
     def classify(self, proc: str, title: str, parent: str = "") -> Hit:
         p, t, par = _norm(proc), _norm(title), _norm(parent)

@@ -2,6 +2,7 @@
 """演示数据：不碰真实屏幕，凭空造一天，用来验证「采集→分类→聚合→日报」整条链。"""
 from __future__ import annotations
 
+import copy
 import time
 from datetime import datetime
 from pathlib import Path
@@ -129,10 +130,14 @@ def run(cfg: dict, store: Store, day: str | None = None) -> dict:
         "演示模式不能使用真实数据库"
     info = seed(store, day)
     day = info["day"]
-    sched = Scheduler(cfg, store)
+    # 演示必须可复现、不出网：把视觉模型强制关掉（否则配了 key 的机器上
+    # 每次 --demo 都会真的调模型，段落数和结论都不稳定）
+    dcfg = copy.deepcopy(cfg)
+    dcfg["analyze"]["mode"] = "rules_only"
+    sched = Scheduler(dcfg, store)
     # 把「现在」推到当天结束，让所有批次都能被处理
     batches = sched.run(now=_at(day, "23:58"))
-    path = render_day(cfg, store, day, open_browser=False, out_name=DEMO_REPORT)
+    path = render_day(dcfg, store, day, open_browser=False, out_name=DEMO_REPORT)
     blocks = store.blocks(day)
     return {"day": day, "batches": batches, "blocks": len(blocks),
             "report": str(path), "samples": info["samples"]}

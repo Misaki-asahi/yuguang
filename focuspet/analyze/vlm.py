@@ -21,6 +21,13 @@ log = get("vlm")
 VALID = {"deep_work", "shallow_work", "learning", "entertainment",
          "aimless", "life", "system", "unknown"}
 
+# 模型偶尔把中文标签当 category 值写回来（提示词里给了中文别名就容易这样）
+ALIAS = {
+    "深度工作": "deep_work", "浅层工作": "shallow_work", "学习": "learning",
+    "娱乐": "entertainment", "无目的浏览": "aimless", "生活": "life",
+    "系统": "system", "未识别": "unknown",
+}
+
 SYSTEM_PROMPT = """你是一个屏幕行为分析助手。你的任务是根据用户一段时间内的前台窗口记录和若干张屏幕截图，
 判断用户在这段时间里具体在做什么，并把结论整理成结构化数据。
 
@@ -30,6 +37,8 @@ SYSTEM_PROMPT = """你是一个屏幕行为分析助手。你的任务是根据�
 3. 如果证据不足，category 填 "unknown"，confidence 填 0.3 以下，不要猜。
 4. 时间用 HH:MM 格式，必须落在给定的时间窗内，且 start 小于 end。
 5. 一个时间窗内通常有 1~4 段，段与段之间应连续覆盖整个窗口，除非有明显空闲。
+   窗口记录有多少条都不要逐条输出——同一件事请合并成一段。输出上限 4 段，
+   evidence 不超过 30 字，否则 JSON 会被长度限制截断。
 6. category 只能从以下取值中选择：
    deep_work / shallow_work / learning / entertainment / aimless / life / system / unknown
 7. on_task 表示这段活动是否服务于用户声明的目标；目标无关时填 null。
@@ -98,6 +107,13 @@ def build_messages(cfg: dict, batch: dict) -> dict:
         lines.append(f"{_hm(t)}  {proc}  |  {title}")
     if not lines:
         lines.append("（本批次没有可用的窗口记录）")
+    # 窗口记录太多时先抽稀：模型会照着每条记录逐分钟输出段，JSON 直接被截断
+    if len(lines) > 20:
+        step = max(1, len(lines) // 18)
+        thinned = lines[::step]
+        if thinned[-1] != lines[-1]:
+            thinned.append(lines[-1])
+        lines = thinned
 
     text = USER_TEMPLATE.format(
         goal=batch.get("goal") or "（今天没有声明目标，只做分类）",
@@ -191,6 +207,7 @@ def validate(data: dict | None, win_start: int, win_end: int,
         if not isinstance(s, dict):
             continue
         cat = s.get("category")
+        cat = ALIAS.get(str(cat).strip(), cat)
         if cat not in VALID:
             continue
         try:

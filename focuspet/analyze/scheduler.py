@@ -111,13 +111,23 @@ class Scheduler:
         for s in segs:
             s["source"] = "rules"
 
-        # 只把「规则认不出来」的段交给模型：按段升级，不是整批重算。
-        # 规则已经认对的段原样保留，模型只负责填洞。
+        # 只把「规则认不出来」或「内容本来就不固定」的段交给模型：
+        # 同一个 agent/IDE 窗口里可能写代码、查资料、闲聊，规则给不了定论。
         if self._vlm_allowed():
-            holes = [s for s in segs if s["category"] == "unknown"]
-            if holes:
-                sub = [r for r in samples if _in_ranges(int(r["ts"]), holes)]
-                batch = self._build_batch(ws, we, sub, focus=holes)
+            targets = []
+            for s in segs:
+                if s["category"] == "unknown":
+                    targets.append(s)
+                    continue
+                procs = [r["proc"] for r in samples
+                         if s["start_ts"] <= int(r["ts"]) < s["end_ts"] and r["proc"]]
+                if procs and self.rules.is_volatile(max(set(procs), key=procs.count)):
+                    targets.append(s)
+            if targets:
+                for t in targets:
+                    t["_target"] = True
+                sub = [r for r in samples if _in_ranges(int(r["ts"]), targets)]
+                batch = self._build_batch(ws, we, sub, focus=targets)
                 if batch and batch["frames"]:
                     spend = float(self.store.kv_get(f"spend:{day_of(ws)}", 0) or 0)
                     est = vlm.estimate_cost(self.cfg, len(batch["frames"]))
@@ -317,14 +327,15 @@ class Scheduler:
     # ---------------------------------------------------------------- 段级合并
     @staticmethod
     def _fill_holes(segs: list[dict], out: list[dict]) -> list[dict]:
-        """把模型段填进 unknown 段覆盖的时间里，其余规则段原样保留。
+        """把模型结论填进「标了 _target 的段」覆盖的时间里，其余规则段原样保留。
 
-        模型可能返回跨出未知窗口的段，这里按未知窗口裁剪；没被模型覆盖到的
-        残余时间仍然算 unknown，绝不让模型替我们把已知段改写掉。
+        目标段可能是 unknown（规则认不出），也可能是内容不固定的应用（规则只能当先验）。
+        模型可能返回跨出目标窗口的段，这里按目标窗口裁剪；没被覆盖的残余时间
+        保留规则结论，绝不让模型把整批都改写掉。
         """
         filled: list[dict] = []
         for s in segs:
-            if s["category"] != "unknown":
+            if not s.get("_target") and s["category"] != "unknown":
                 filled.append(s)
                 continue
             covered = sorted((m for m in out
@@ -338,6 +349,15 @@ class Scheduler:
                 ms = max(m["start_ts"], s["start_ts"])
                 me = min(m["end_ts"], s["end_ts"])
                 if ms >= me:
+                    continue
+                # 模型看不清画面时爱填「生活/系统」，不能让它把工作段降级掉；
+                # 但它的 activity 往往比规则的通用文案具体，这一段只借用描述、保留类别。
+                if s["category"] in ("deep_work", "shallow_work", "learning") \
+                        and m["category"] in ("life", "system"):
+                    act = (m.get("activity") or "").strip()
+                    if act and act not in ("无操作", "无可见活动"):
+                        filled.append({**s, "start_ts": ms, "end_ts": me, "activity": act})
+                        cursor = max(cursor, me)
                     continue
                 if ms > cursor:
                     filled.append({**s, "start_ts": cursor, "end_ts": ms})
@@ -454,7 +474,7 @@ class Scheduler:
             "prev": prev,
             "focus": "、".join(f"{_hm(s['start_ts'])}-{_hm(s['end_ts'])}" for s in focus)
                      if focus else "",
-            "cands": "、".join(aggregate.label(c) for c in self._candidates(samples)),
+            "cands": "、".join(f"{c}（{aggregate.label(c)}）" for c in self._candidates(samples)),
         }
 
     def _candidates(self, samples: list) -> list[str]:
