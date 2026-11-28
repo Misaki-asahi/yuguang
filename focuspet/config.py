@@ -39,6 +39,8 @@ DEFAULTS = {
         "idle_threshold_sec": 300,
         "max_shot_side": 1280,
         "crop_to_window": True,    # 只截前台窗口：同样 1280 像素，字清楚得多
+        "shot_on_window_settle": True,   # 切窗口停住 5 秒补一张，免得图和进程对不上
+        "shot_settle_gap_sec": 120,      # 补拍最小间隔
         "jpeg_quality": 70,
         "screens": [1],
     },

@@ -102,24 +102,40 @@ def merge_segments(segments: list[dict], gap: int = 180, min_len: int = 60) -> l
 
 
 def attach_shots(segments: list[dict], samples: list) -> list[dict]:
-    """给每个块挂一张代表性截图，供日报回看证据（7.1 的第 2 条要求）。
+    """给每个块挂一张代表性截图，并记下这张图拍的是哪个窗口。
 
-    优先取「这段开始 3 秒以后」的第一张：刚切过去的那一帧，页面可能还在加载、
-    标题还没稳定，拿它当证据容易指错。
+    截图 10 分钟一张，而进程判定 5 秒一条，两者经常对不上——报告里就会出现
+    「进程写 Qoder、图里是微信」。所以：优先挑**同一窗口**的图，同时把图的
+    拍摄时刻和当时的前台进程一起记下来，让「图不对」这件事在报告里看得见。
     """
-    shots = sorted(((int(r["ts"]), r["shot"]) for r in samples if r["shot"]),
-                   key=lambda x: x[0])
+    shots = sorted(((int(r["ts"]), r["shot"], (r["proc"] or ""))
+                    for r in samples if r["shot"]), key=lambda x: x[0])
+    if not shots:
+        return segments
+
     for seg in segments:
-        if seg.get("shot_ref") or not shots:
+        if seg.get("shot_ref"):
             continue
         start, end = int(seg["start_ts"]), int(seg["end_ts"])
-        inside = [(t, s) for t, s in shots if start <= t < end]
-        if inside:
-            after = [(t, s) for t, s in inside if t >= start + 3]
-            seg["shot_ref"] = (after or inside)[0][1]
-            continue
-        mid = (start + end) // 2
-        seg["shot_ref"] = min(shots, key=lambda x: abs(x[0] - mid))[1]
+        procs = [r["proc"] for r in samples
+                 if start <= int(r["ts"]) < end and r["proc"]]
+        dom = max(set(procs), key=procs.count) if procs else ""
+
+        def pick(pool: list) -> tuple | None:
+            inside = [s for s in pool if start <= s[0] < end]
+            if inside:
+                after = [s for s in inside if s[0] >= start + 3]
+                return (after or inside)[0]
+            near = [s for s in pool if start - 900 <= s[0] <= end + 900]
+            if not near:
+                return None
+            mid = (start + end) // 2
+            return min(near, key=lambda s: abs(s[0] - mid))
+
+        same = [s for s in shots if dom and s[2].lower() == dom.lower()]
+        hit = pick(same) or pick(shots)
+        if hit:
+            seg["shot_ref"], seg["shot_ts"], seg["shot_proc"] = hit[1], hit[0], hit[2]
     return segments
 
 
@@ -137,6 +153,8 @@ def to_blocks(segments: list[dict]) -> list[dict]:
             "on_task": s.get("on_task"),
             "confidence": float(s.get("confidence") or 0),
             "shot_ref": s.get("shot_ref"),
+            "shot_ts": s.get("shot_ts"),
+            "shot_proc": s.get("shot_proc"),
         })
     return blocks
 

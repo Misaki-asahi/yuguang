@@ -53,6 +53,7 @@ class App:
         # 从库里续上上一张截图的时间：否则每次重启都会立刻补拍一张，
         # 把「10 分钟一张」变成「每次重启一张」。
         self._last_shot = float(self.store.last_shot_ts())
+        self._shot_win = None          # 上一张截图拍的是哪个窗口
         self._last_report_day = ""
 
     # ---------------------------------------------------------------- 通知
@@ -99,8 +100,15 @@ class App:
             due = (now - self._last_shot) >= float(cap.get("shot_interval_sec", 600))
             changed = (cap.get("shot_on_window_change", True)
                        and self._last_win is not None and win.key() != self._last_win)
-            if due or changed:
+            # 切过去停住了再补一张：截图只有 10 分钟一张时，报告里的图经常
+            # 是十分钟前另一个窗口的画面（「进程 Qoder、图里是微信」）。
+            settled = (cap.get("shot_on_window_settle", True)
+                       and win.key() != self._shot_win
+                       and (now - self._key_changed_at) >= 5
+                       and (now - self._last_shot) >= float(cap.get("shot_settle_gap_sec", 120)))
+            if due or changed or settled:
                 self._last_shot = now
+                self._shot_win = win.key()
                 if winmod.is_fullscreen(win.hwnd):
                     log.debug("全屏窗口跳过截图：%s", win.proc)
                 else:

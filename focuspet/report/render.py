@@ -280,7 +280,11 @@ def _blocks(d: dict) -> str:
         ev_text = _evidence(b, d["analyses"])
         img = ""
         if b.get("shot_ref"):
-            img = (f'<img src="../{_esc(b["shot_ref"])}" alt="证据截图" loading="lazy">')
+            cap = ""
+            if b.get("shot_ts"):
+                cap = (f'<p style="margin-top:6px;color:#8A94A3;font-size:11px">'
+                       f'截图 {_hm(b["shot_ts"])} · {_esc(b.get("shot_proc") or "未知窗口")}</p>')
+            img = (f'<img src="../{_esc(b["shot_ref"])}" alt="证据截图" loading="lazy">{cap}')
         else:
             img = '<div class="none">这一段没有留下截图</div>'
         ev_body = (

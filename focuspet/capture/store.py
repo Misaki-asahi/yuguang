@@ -60,7 +60,9 @@ CREATE TABLE IF NOT EXISTS block (
   activity   TEXT,
   on_task    INTEGER,
   confidence REAL,
-  shot_ref   TEXT
+  shot_ref   TEXT,
+  shot_ts    INTEGER,           -- 截图拍摄时刻
+  shot_proc  TEXT               -- 截图拍摄时的前台进程（和块的进程可能不一致）
 );
 CREATE INDEX IF NOT EXISTS idx_block_date ON block(date, start_ts);
 
@@ -181,6 +183,17 @@ class Store:
                     log.info("sample 表补上 parent 列")
                 except sqlite3.Error:
                     pass
+            # 老库补列：块挂的截图是哪个窗口、什么时候拍的
+            bcols = {r["name"] for r in self.conn.execute("PRAGMA table_info(block)")}
+            for col, ddl in (("shot_ts", "ALTER TABLE block ADD COLUMN shot_ts INTEGER"),
+                             ("shot_proc", "ALTER TABLE block ADD COLUMN shot_proc TEXT")):
+                if col not in bcols:
+                    try:
+                        self.conn.execute(ddl)
+                        self.conn.commit()
+                        log.info("block 表补上 %s 列", col)
+                    except sqlite3.Error:
+                        pass
         try:
             n = self.replay_pending()
             if n:
@@ -369,10 +382,12 @@ class Store:
             for b in blocks:
                 self.conn.execute(
                     "INSERT INTO block(date, start_ts, end_ts, category, activity,"
-                    " on_task, confidence, shot_ref) VALUES(?,?,?,?,?,?,?,?)",
+                    " on_task, confidence, shot_ref, shot_ts, shot_proc)"
+                    " VALUES(?,?,?,?,?,?,?,?,?,?)",
                     (day, int(b["start_ts"]), int(b["end_ts"]), b["category"],
                      b.get("activity", ""), b.get("on_task"),
-                     float(b.get("confidence", 0) or 0), b.get("shot_ref")),
+                     float(b.get("confidence", 0) or 0), b.get("shot_ref"),
+                     b.get("shot_ts"), b.get("shot_proc")),
                 )
             self.conn.commit()
 
